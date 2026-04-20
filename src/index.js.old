@@ -1,0 +1,80 @@
+import express from 'express';
+import { WebSocketServer } from 'ws';
+import { initDatabase } from './services/db.js';
+import { StateMachine } from './services/stateMachine.js';
+import { WhatsAppAgent } from './agents/whatsappAgent.js';
+import { MediaServer } from './services/mediaServer.js';
+import { Ledger } from './services/ledger.js';
+import apiRoutes from './routes/api.js';
+
+const PORT = 3000;
+const WS_PORT = 1884;
+
+await initDatabase();
+console.log('[CORE] Database initialized');
+
+const stateMachine = new StateMachine();
+const ledger = new Ledger();
+await ledger.init();
+console.log(`[LEDGER] Status: ${(await ledger.getStats()).status}`);
+
+// START MEDIA SERVER (RTMP for iPhone Larix)
+try {
+  const mediaServer = new MediaServer();
+  mediaServer.start();
+  console.log('[NMS] RTMP Server starting on port 1935...');
+} catch (err) {
+  console.error('[NMS] Failed to start:', err.message);
+}
+
+// WhatsApp Agent
+const waAgent = new WhatsAppAgent(stateMachine, ledger);
+waAgent.start().catch(err => console.error('[WHATSAPP]', err.message));
+
+// Express HTTP Server
+const app = express();
+app.use(express.json({ limit: '1mb' }));
+app.use('/api', apiRoutes);
+app.use(express.static('public'));
+
+// ADD STREAM MONITORING ENDPOINT
+app.get('/api/streams', (req, res) => {
+  const streams = { live: {} };
+  
+  if (stateMachine && stateMachine.sessionCache) {
+    for (const [id, session] of stateMachine.sessionCache) {
+      if (session.state === 'WATCHING_STREAM' || session.stream_active) {
+        streams.live[id] = {
+          state: session.state,
+          active: true
+        };
+      }
+    }
+  }
+  
+  res.json(streams);
+});
+
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`[HTTP] Server on http://0.0.0.0:${PORT}`);
+  console.log(`[RTMP] Ingest: rtmp://0.0.0.0:1935/live/{stream-key}`);
+  console.log(`[HLS] Playback: http://0.0.0.0:8000/live/{stream-key}.m3u8`);
+});
+
+// WebSocket Digital Twin Bridge
+const wss = new WebSocketServer({ port: WS_PORT, host: '0.0.0.0' });
+console.log(`[WS] WebSocket on port ${WS_PORT}`);
+
+const clients = new Set();
+wss.on('connection', (ws) => {
+  clients.add(ws);
+  ws.on('message', (data) => {
+    const ts = Date.now();
+    clients.forEach(c => {
+      if (c.readyState === 1) {
+        c.send(Buffer.concat([data, Buffer.from([0x02]), Buffer.from(ts.toString().slice(-6))]));
+      }
+    });
+  });
+  ws.on('close', () => clients.delete(ws));
+});

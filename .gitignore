@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.save
+.env.*.local
+
+# Database & Runtime
+data/
+*.db
+*.db-shm
+*.db-wal
+dump.rdb
+
+# OS
+.DS_Store
+
+# Logs
+*.log

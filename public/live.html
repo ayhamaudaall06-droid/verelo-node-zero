@@ -1,0 +1,302 @@
+cat > ~/Desktop/verelo-v2/public/live.html << 'HTMLEOF'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verelo Portal - Live Window</title>
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client@1.15.0/dist/livekit-client.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0f;
+            color: #fff;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        #video-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+        }
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        /* ── Product Card Overlay ── */
+        #product-card {
+            position: absolute;
+            bottom: 100px;
+            left: 40px;
+            background: rgba(10, 10, 15, 0.9);
+            border: 2px solid transparent;
+            border-radius: 16px;
+            padding: 20px;
+            width: 320px;
+            backdrop-filter: blur(20px);
+            transition: all 0.4s ease;
+            z-index: 100;
+        }
+        #product-card.theme-urgency { border-color: #ff4444; box-shadow: 0 0 30px rgba(255,68,68,0.4); }
+        #product-card.theme-limited { border-color: #ffaa00; box-shadow: 0 0 30px rgba(255,170,0,0.4); }
+        #product-card.theme-exclusive { border-color: #aa66ff; box-shadow: 0 0 30px rgba(170,102,255,0.4); }
+        #product-card.theme-trending { border-color: #00ccff; box-shadow: 0 0 30px rgba(0,204,255,0.4); }
+        #product-card.theme-standard { border-color: #333; }
+        
+        .box-transition { animation: boxPulse 0.8s ease; }
+        @keyframes boxPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.04); }
+            100% { transform: scale(1); }
+        }
+        
+        #product-image {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            background: #1a1a2e;
+        }
+        #product-name {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #fff;
+        }
+        #product-price {
+            font-size: 28px;
+            font-weight: 800;
+            color: #00ff88;
+            margin-bottom: 4px;
+        }
+        #product-inventory {
+            font-size: 14px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        /* ── Status Badge ── */
+        .status-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: rgba(0,0,0,0.8);
+            border: 1px solid #333;
+        }
+        .status-badge.live { border-color: #ff4444; color: #ff4444; }
+        
+        /* ── Controls ── */
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            z-index: 100;
+        }
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn:hover { background: rgba(255,255,255,0.2); }
+        .btn-primary { background: #00ff88; color: #000; }
+        .btn-primary:hover { background: #00cc6a; }
+        
+        /* ── Loader ── */
+        #loader {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 14px;
+            color: #666;
+            z-index: 50;
+        }
+    </style>
+</head>
+<body>
+
+<div id="video-container">
+    <div id="loader">Connecting to stream...</div>
+    
+    <div id="product-card" style="display:none;">
+        <img id="product-image" src="" alt="Product">
+        <div id="product-name">Loading...</div>
+        <div id="product-price">--</div>
+        <div id="product-inventory">--</div>
+    </div>
+    
+    <div class="status-badge live">● LIVE</div>
+    
+    <div id="controls">
+        <button class="btn" onclick="toggleMute()">Mute</button>
+        <button class="btn btn-primary" onclick="connect()">Connect Stream</button>
+    </div>
+</div>
+
+<script>
+    const { Room, RoomEvent } = LiveKitClient;
+    let room = null;
+    let currentProductMeta = {};
+    
+    // ── Render Helpers ──
+    function renderProductState(meta) {
+        const card = document.getElementById('product-card');
+        const els = {
+            name: document.getElementById('product-name'),
+            price: document.getElementById('product-price'),
+            inv: document.getElementById('product-inventory'),
+            img: document.getElementById('product-image')
+        };
+        
+        if (!meta || !meta.active_product_id) {
+            card.style.display = 'none';
+            return;
+        }
+        
+        card.style.display = 'block';
+        if (els.name) els.name.textContent = meta.sku || meta.active_product_id;
+        if (els.price) els.price.textContent = (meta.price !== undefined) ? `${meta.price} ${meta.currency || 'USD'}` : '';
+        if (els.inv) els.inv.textContent = (meta.inventory !== undefined) ? `${meta.inventory} in stock` : '';
+        if (els.img) els.img.src = meta.primary_media_url || '';
+        
+        // Theme
+        card.className = 'product-card';
+        if (meta.theme) {
+            card.classList.add(`theme-${meta.theme}`);
+        }
+    }
+    
+    function triggerBoxTransitionAnimation(fromBox, toBox) {
+        const card = document.getElementById('product-card');
+        if (!card) return;
+        card.classList.remove('box-transition');
+        void card.offsetWidth; // Force reflow
+        card.classList.add('box-transition');
+        setTimeout(() => card.classList.remove('box-transition'), 800);
+    }
+    
+    // ── LiveKit Connection ──
+    async function connect()
+// ── HTTP Fallback: load active product before LiveKit ──
+async function loadActiveProduct() {
+  try {
+    const res = await fetch('/api/active-product?room=verelo-factory-1');
+    if (res.ok) {
+      const meta = await res.json();
+      currentProductMeta = meta;
+      renderProductState(meta);
+      console.log('[HTTP Fallback] Loaded:', meta.active_product_id || meta.id);
+    }
+  } catch (e) {
+    console.warn('[HTTP Fallback] Failed:', e);
+  }
+}
+
+// Call immediately on page load
+loadActiveProduct();
+ {
+        const LIVEKIT_URL = 'wss://verelo-factory-1.livekit.cloud'; // Change to your URL
+        const TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJ2aWRlbyI6eyJyb29tSm9pbiI6dHJ1ZSwicm9vbSI6InZlcmVsby1mYWN0b3J5LTEiLCJjYW5QdWJsaXNoIjpmYWxzZSwiY2FuU3Vic2NyaWJlIjp0cnVlfSwiaXNzIjoiQVBJQmd3M2tGWFVBMkNKIiwiZXhwIjoxNzc2NzM4NTU4LCJuYmYiOjE3NzY3MTY5NTgsInN1YiI6InZpZXdlci0xIn0.nw6rdHuOclg0rbGon_0kcDzml62CfzV_4ZTfEaSNTeM'; // Change to your token endpoint
+        
+        document.getElementById('loader').textContent = 'Joining room...';
+        
+        room = new Room({
+            adaptiveStream: true,
+            dynacast: true,
+            videoCaptureDefaults: { resolution: { width: 1280, height: 720 } }
+        });
+        
+        // ── CRITICAL: Attach listeners BEFORE connect ──
+        room.on(RoomEvent.Connected, () => {
+            console.log('[LiveKit] Connected to room');
+            document.getElementById('loader').style.display = 'none';
+            
+            // Late joiner: read persistent room metadata immediately
+            try {
+                const meta = room.metadata ? JSON.parse(room.metadata) : {};
+                if (meta.active_product_id) {
+                    currentProductMeta = meta;
+                    renderProductState(meta);
+                    console.log('[LiveKit] Late joiner loaded state:', meta.active_product_id);
+                }
+            } catch (e) {
+                console.warn('[LiveKit] Metadata parse error:', e);
+            }
+        });
+        
+        room.on(RoomEvent.MetadataChanged, (metadata) => {
+            try {
+                const newMeta = JSON.parse(metadata);
+                const oldMeta = { ...currentProductMeta };
+                
+                if (newMeta.box_type && oldMeta.box_type && newMeta.box_type !== oldMeta.box_type) {
+                    triggerBoxTransitionAnimation(oldMeta.box_type, newMeta.box_type);
+                }
+                
+                renderProductState(newMeta);
+                currentProductMeta = newMeta;
+                console.log('[LiveKit] Metadata updated:', newMeta.active_product_id, newMeta.box_type);
+            } catch (e) {
+                console.warn('[LiveKit] Metadata change error:', e);
+            }
+        });
+        
+        room.on(RoomEvent.Disconnected, () => {
+            console.log('[LiveKit] Disconnected');
+            document.getElementById('loader').style.display = 'block';
+            document.getElementById('loader').textContent = 'Disconnected. Click Connect.';
+        });
+        
+        room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+            if (track.kind === 'video') {
+                const videoEl = track.attach();
+                videoEl.id = 'stream-video';
+                document.getElementById('video-container').appendChild(videoEl);
+            }
+            if (track.kind === 'audio') {
+                track.attach();
+            }
+        });
+        
+        try {
+            await room.connect(LIVEKIT_URL, TOKEN);
+        } catch (err) {
+            console.error('[LiveKit] Connection failed:', err);
+            document.getElementById('loader').textContent = 'Connection failed. Check token.';
+        }
+    }
+    
+    function toggleMute() {
+        if (!room) return;
+        room.localParticipant.setMicrophoneEnabled(!room.localParticipant.isMicrophoneEnabled);
+    }
+    
+    // Auto-connect on load (optional)
+    // connect();
+</script>
+
+</body>
+</html>
+HTMLEOF
+// Auto-load from HTTP fallback on page load
+loadActiveProduct();

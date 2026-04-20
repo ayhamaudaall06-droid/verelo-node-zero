@@ -1,0 +1,31 @@
+{
+  "name": "verelo-v2",
+  "version": "2.0.0",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "worker:inbound": "node src/worker.js",
+    "worker:outbound": "node src/dispatcher.js",
+    "test:latency": "node tests/latency_harness.js",
+    "dev": "concurrently \"npm run start\" \"npm run worker:inbound\" \"npm run worker:outbound\""
+  },
+  "dependencies": {
+    "axios": "^1.15.1",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "level": "^8.0.0",
+    "livekit-server-sdk": "^2.15.1",
+    "msgpack-lite": "^0.1.26",
+    "qrcode-terminal": "^0.12.0",
+    "redis": "^5.12.1",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7",
+    "uuid": "^9.0.0",
+    "ws": "^8.20.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
