@@ -1,4 +1,4 @@
-import { readdirSync, existsSync } from 'fs';
+import { readdirSync, existsSync, readFileSync } from 'fs';
 import crypto from 'crypto';
 import { getPresignedUploadUrl } from './services/r2Presign.js';
 import { AccessToken } from 'livekit-server-sdk';
@@ -25,7 +25,13 @@ app.get('/live.html', (req, res) => {
 });
 
 app.get('/admin/products.html', (req, res) => {
-  res.sendFile(join(process.cwd(), 'public', 'admin', 'products.html'));
+  try {
+    const html = readFileSync(join(process.cwd(), 'public', 'admin', 'products.html'), 'utf8');
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (e) {
+    res.status(500).send('File error: ' + e.message);
+  }
 });
 
 app.get('/admin', (req, res) => {
