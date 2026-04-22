@@ -46,6 +46,59 @@ app.get('/api/admin/products', async (req, res) => {
   }
 });
 
+app.post('/api/admin/push-to-stream', async (req, res) => {
+  const { product_id, room = 'verelo-factory-1' } = req.body;
+  if (!product_id) return res.status(400).json({ error: 'product_id required' });
+  
+  const db = dbModule.db;
+  const product = await db.get(`SELECT * FROM products WHERE id = ?`, [product_id]);
+  if (!product) return res.status(404).json({ error: 'Product not found' });
+  if (product.status === 'vaulted') return res.status(400).json({ error: 'Cannot push vaulted product' });
+  
+  // 1. Update status to live
+  await db.run(`UPDATE products SET status = 'live', updated_at = ? WHERE id = ?`, [Date.now(), product_id]);
+  
+  // 2. LiveKit micro-payload
+  const { updateRoomProductState } = await import('./services/livekitStateBridge.js');
+  await updateRoomProductState(room, {
+    id: product.id,
+    sku: product.sku,
+    box_type: 'standard',
+    price: product.price,
+    currency: 'USD',
+    inventory: product.inventory_count,
+    media_url: product.image_url
+  });
+  
+  // 3. HTTP fallback cache
+  const { setActiveProduct } = await import('./services/activeProductStore.js');
+  await setActiveProduct(room, {
+    id: product.id,
+    sku: product.sku,
+    box_type: 'standard',
+    price: product.price,
+    currency: 'USD',
+    inventory: product.inventory_count,
+    media_url: product.image_url,
+    theme: product.product_type === 'verelo_exclusive' ? 'exclusive' : 'standard'
+  });
+  
+  // 4. Enqueue WhatsApp Meta Catalog sync (Universal ID)
+  const { enqueueWhatsAppSync } = await import('./services/whatsappSyncWorker.js');
+  await enqueueWhatsAppSync({
+    productId: product.id,
+    syncType: 'full',
+    priority: 9,
+    payload: {
+      inventory_count: product.inventory_count,
+      price: product.price,
+      currency: product.currency || 'USD'
+    }
+  });
+  
+  res.json({ success: true, product_id, sku: product.sku, status: 'live', room });
+});
+
 app.use('/api', apiRoutes);
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 

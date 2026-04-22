@@ -12,6 +12,57 @@ if (!CATALOG_ID || !ACCESS_TOKEN) {
   console.warn('[WhatsApp Sync] Missing META_CATALOG_ID or META_ACCESS_TOKEN. Worker idle.');
 }
 
+// ── Meta Commerce API Helpers ──
+async function metaApiCall(path, body, method = 'POST') {
+  const url = `https://graph.facebook.com/${META_API_VERSION}/${path}`;
+  const res = await fetch(url, {
+    method,
+    headers: {
+      'Authorization': `Bearer ${ACCESS_TOKEN}`,
+      'Content-Type': 'application/json'
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(`Meta ${res.status}: ${data.error?.message || JSON.stringify(data)}`);
+  }
+  return data;
+}
+
+async function createMetaProduct(product) {
+  const payload = {
+    name: product.name,
+    description: product.description || product.name,
+    availability: product.inventory_count > 0 ? 'in stock' : 'out of stock',
+    condition: 'new',
+    price: `${product.price} ${product.currency || 'USD'}`,
+    currency: product.currency || 'USD',
+    retailer_id: product.id,
+    url: `https://verelo.app/products/${product.id}`,
+    image_url: product.image_url,
+    category: mapToMetaCategory(product.category_id)
+  };
+  
+  const result = await metaApiCall(`${CATALOG_ID}/products`, payload);
+  return result.id;
+}
+
+async function updateMetaProduct(waProductId, updates) {
+  return metaApiCall(waProductId, updates);
+}
+
+function mapToMetaCategory(categoryId) {
+  const map = {
+    1: 'HOME_GOODS',
+    2: 'HEALTH_BEAUTY',
+    3: 'GROCERY',
+    4: 'HOME_GOODS'
+  };
+  return map[categoryId] || 'HOME';
+}
+
+// ── Queue Operations ──
 export async function enqueueWhatsAppSync({ productId, syncType, priority = 1, payload }) {
   const db = dbModule.db;
   await db.run(
@@ -49,6 +100,7 @@ async function processBatch() {
   for (const job of deduped.values()) {
     try {
       const payload = JSON.parse(job.payload_json);
+      
       if (job.sync_type === 'inventory') {
         const inv = payload.inventory_count;
         const isCritical = CRITICAL_THRESHOLDS.includes(inv) || job.priority >= 9;
@@ -57,6 +109,7 @@ async function processBatch() {
           continue;
         }
       }
+      
       await syncToMetaCommerceAPI(job.product_id, job.sync_type, payload);
       await db.run(`UPDATE whatsapp_sync_queue SET processed_at = ? WHERE id = ?`, [now, job.id]);
       console.log(`[WhatsApp Sync] ✅ ${job.product_id}`);
@@ -73,22 +126,44 @@ async function processBatch() {
 
 async function syncToMetaCommerceAPI(productId, syncType, payload) {
   const db = dbModule.db;
-  const mapping = await db.get(`SELECT wa_product_id FROM whatsapp_catalog WHERE product_id = ?`, [productId]);
-  if (!mapping?.wa_product_id) throw new Error(`No WA mapping for ${productId}`);
+  
+  // Only sync LIVE products
+  const product = await db.get(`SELECT * FROM products WHERE id = ? AND status = 'live'`, [productId]);
+  if (!product) {
+    console.log(`[WhatsApp Sync] Skipping ${productId} — not live`);
+    return;
+  }
 
-  const url = `https://graph.facebook.com/${META_API_VERSION}/${mapping.wa_product_id}`;
-  const body = {};
-  if (syncType === 'inventory') body.availability = payload.inventory_count > 0 ? 'in stock' : 'out of stock';
-  if (syncType === 'price') body.price = `${payload.price} ${payload.currency || 'USD'}`;
-  if (syncType === 'full') Object.assign(body, payload);
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(`Meta ${res.status}: ${err.error?.message || JSON.stringify(err)}`);
+  let mapping = await db.get(`SELECT wa_product_id FROM whatsapp_catalog WHERE product_id = ?`, [productId]);
+  
+  if (!mapping?.wa_product_id) {
+    // CREATE in Meta Catalog using Universal ID
+    console.log(`[WhatsApp Sync] Creating ${productId} in Meta Catalog...`);
+    const waProductId = await createMetaProduct(product);
+    const now = Date.now();
+    
+    await db.run(
+      `INSERT INTO whatsapp_catalog (product_id, wa_product_id, wa_catalog_id, sync_status, last_wa_sync)
+       VALUES (?, ?, ?, 'synced', ?)
+       ON CONFLICT(product_id) DO UPDATE SET
+       wa_product_id = excluded.wa_product_id,
+       sync_status = 'synced',
+       last_wa_sync = excluded.last_wa_sync`,
+      [productId, waProductId, CATALOG_ID, now]
+    );
+    console.log(`[WhatsApp Sync] Created ${productId} → ${waProductId}`);
+  } else {
+    // UPDATE existing
+    const updates = {};
+    if (syncType === 'inventory') updates.availability = payload.inventory_count > 0 ? 'in stock' : 'out of stock';
+    if (syncType === 'price') updates.price = `${payload.price} ${payload.currency || 'USD'}`;
+    if (syncType === 'full') Object.assign(updates, payload);
+    
+    if (Object.keys(updates).length > 0) {
+      await updateMetaProduct(mapping.wa_product_id, updates);
+      console.log(`[WhatsApp Sync] Updated ${productId}`);
+    }
   }
 }
+
+export const outQueue = { add: enqueueWhatsAppSync };
