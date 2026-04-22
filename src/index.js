@@ -4,16 +4,12 @@ import { getPresignedUploadUrl } from './services/r2Presign.js';
 import { AccessToken } from 'livekit-server-sdk';
 import { getActiveProduct } from './services/activeProductStore.js';
 import express from 'express';
-import { getActiveProduct } from './services/activeProductStore.js';
-import express from 'express';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-
 import dbModule from './services/db.js';
 import apiRoutes from './routes/api.js';
 import { startWhatsAppSyncWorker } from './services/whatsappSyncWorker.js';
-
 dotenv.config();
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
