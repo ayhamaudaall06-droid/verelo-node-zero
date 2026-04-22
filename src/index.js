@@ -21,7 +21,9 @@ app.use(express.static(join(__dirname, '..', 'public')));
 
 // Explicit fallback for live.html until static middleware is fully trusted
 app.get('/live.html', (req, res) => {
-  res.sendFile(join(__dirname, '..', 'public', 'live.html'));
+app.get('/admin/products.html', (req, res) => {
+  res.sendFile(join(__dirname, '..', 'public', 'admin', 'products.html'));
+});  res.sendFile(join(__dirname, '..', 'public', 'live.html'));
 });
 
 // ── 2. PARSERS ──
