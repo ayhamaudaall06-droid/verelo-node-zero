@@ -22,6 +22,7 @@ function colExists(table, col) {
 
 console.log('[Migrate] Connected to', dbPath);
 
+// ── PRODUCTS TABLE ──
 if (!tableExists('products')) {
   db.exec(`CREATE TABLE products (
     id TEXT PRIMARY KEY, sku TEXT UNIQUE NOT NULL, name TEXT NOT NULL,
@@ -30,9 +31,39 @@ if (!tableExists('products')) {
     inventory_count INTEGER DEFAULT 0, is_active BOOLEAN DEFAULT 1,
     metadata_json TEXT, created_at INTEGER, updated_at INTEGER
   );`);
-  console.log('[Migrate] Created products');
+  console.log('[Migrate] Created products table');
 }
 
+// Add missing base columns (safe for old schemas)
+const baseCols = [
+  { name: 'sku',         def: 'TEXT UNIQUE' },
+  { name: 'name',        def: 'TEXT NOT NULL' },
+  { name: 'description', def: 'TEXT' },
+  { name: 'price',       def: 'DECIMAL(10,2) NOT NULL DEFAULT 0' },
+  { name: 'currency',    def: "TEXT DEFAULT 'USD'" },
+  { name: 'category',    def: 'TEXT' },
+  { name: 'box_type',    def: "TEXT CHECK(box_type IN ('trending','factory','limited','vault'))" },
+  { name: 'inventory_count', def: 'INTEGER DEFAULT 0' },
+  { name: 'is_active',   def: 'BOOLEAN DEFAULT 1' },
+  { name: 'metadata_json', def: 'TEXT' },
+  { name: 'created_at', def: 'INTEGER' },
+  { name: 'updated_at', def: 'INTEGER' }
+];
+
+for (const c of baseCols) {
+  if (!colExists('products', c.name)) {
+    try {
+      db.exec(`ALTER TABLE products ADD COLUMN ${c.name} ${c.def};`);
+      console.log(`[Migrate] Added base column: ${c.name}`);
+    } catch (e) {
+      console.log(`[Migrate] Skipped ${c.name}: ${e.message}`);
+    }
+  } else {
+    console.log(`[Migrate] Base column exists: ${c.name}`);
+  }
+}
+
+// Generated columns (must come AFTER metadata_json is guaranteed to exist)
 const genCols = [
   { name: 'size', expr: `json_extract(metadata_json, '$.size')` },
   { name: 'color', expr: `json_extract(metadata_json, '$.color')` },
@@ -42,20 +73,27 @@ const genCols = [
 
 for (const c of genCols) {
   if (!colExists('products', c.name)) {
-    db.exec(`ALTER TABLE products ADD COLUMN ${c.name} TEXT GENERATED ALWAYS AS (${c.expr}) VIRTUAL;`);
-    console.log(`[Migrate] Generated column: ${c.name}`);
+    try {
+      db.exec(`ALTER TABLE products ADD COLUMN ${c.name} TEXT GENERATED ALWAYS AS (${c.expr}) VIRTUAL;`);
+      console.log(`[Migrate] Generated column: ${c.name}`);
+    } catch (e) {
+      console.log(`[Migrate] Skipped generated ${c.name}: ${e.message}`);
+    }
   } else {
-    console.log(`[Migrate] Already exists: ${c.name}`);
+    console.log(`[Migrate] Generated column exists: ${c.name}`);
   }
 }
 
+// Indexes (only after all columns are guaranteed to exist)
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_products_box ON products(box_type, is_active) WHERE is_active=1;
   CREATE INDEX IF NOT EXISTS idx_products_category ON products(category, box_type);
   CREATE INDEX IF NOT EXISTS idx_products_size ON products(size) WHERE size IS NOT NULL;
   CREATE INDEX IF NOT EXISTS idx_products_ai ON products(ai_generated) WHERE ai_generated=1;
 `);
+console.log('[Migrate] Indexes ensured');
 
+// ── PRODUCT_MEDIA TABLE ──
 if (!tableExists('product_media')) {
   db.exec(`CREATE TABLE product_media (
     id TEXT PRIMARY KEY, product_id TEXT REFERENCES products(id) ON DELETE CASCADE,
@@ -68,14 +106,17 @@ if (!tableExists('product_media')) {
 } else {
   if (!colExists('product_media', 'asset_source')) {
     db.exec(`ALTER TABLE product_media ADD COLUMN asset_source TEXT CHECK(asset_source IN ('physical_photo','ai_character','ai_lifestyle','video_render'));`);
+    console.log('[Migrate] Added product_media.asset_source');
   }
   if (!colExists('product_media', 'platform_whitelist')) {
     db.exec(`ALTER TABLE product_media ADD COLUMN platform_whitelist TEXT DEFAULT 'all';`);
+    console.log('[Migrate] Added product_media.platform_whitelist');
   }
 }
 
 db.exec(`CREATE INDEX IF NOT EXISTS idx_media_product ON product_media(product_id, sort_order);`);
 
+// ── SYNC_STATE TABLE ──
 if (!tableExists('sync_state')) {
   db.exec(`CREATE TABLE sync_state (
     id INTEGER PRIMARY KEY AUTOINCREMENT, product_id TEXT,
@@ -83,16 +124,21 @@ if (!tableExists('sync_state')) {
     status TEXT CHECK(status IN ('pending','synced','failed')), payload_hash TEXT,
     error_log TEXT, synced_at INTEGER
   );`);
+  console.log('[Migrate] Created sync_state');
 }
+
 db.exec(`CREATE INDEX IF NOT EXISTS idx_sync_pending ON sync_state(status, target_platform) WHERE status='pending';`);
 
+// ── WHATSAPP_CATALOG TABLE ──
 if (!tableExists('whatsapp_catalog')) {
   db.exec(`CREATE TABLE whatsapp_catalog (
     product_id TEXT PRIMARY KEY REFERENCES products(id),
     wa_product_id TEXT, wa_catalog_id TEXT, sync_status TEXT, last_wa_sync INTEGER
   );`);
+  console.log('[Migrate] Created whatsapp_catalog');
 }
 
+// ── WHATSAPP_SYNC_QUEUE TABLE ──
 if (!tableExists('whatsapp_sync_queue')) {
   db.exec(`CREATE TABLE whatsapp_sync_queue (
     id INTEGER PRIMARY KEY AUTOINCREMENT, product_id TEXT NOT NULL,
@@ -100,7 +146,9 @@ if (!tableExists('whatsapp_sync_queue')) {
     priority INTEGER DEFAULT 0, payload_json TEXT NOT NULL,
     created_at INTEGER DEFAULT (strftime('%s','now')), processed_at INTEGER, error_count INTEGER DEFAULT 0
   );`);
+  console.log('[Migrate] Created whatsapp_sync_queue');
 }
+
 db.exec(`CREATE INDEX IF NOT EXISTS idx_whatsapp_queue_pending ON whatsapp_sync_queue(processed_at, priority, created_at) WHERE processed_at IS NULL;`);
 
 console.log('[Migrate] ✅ Complete');
