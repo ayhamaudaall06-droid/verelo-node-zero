@@ -16,6 +16,17 @@ async function init() {
   db = await open({ filename: DB_PATH, driver: sqlite3.Database });
   await db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
 
+  // Nuclear option: reset schema if env var set (one-time use)
+  if (process.env.RESET_DB === 'true') {
+    console.warn("[DB] RESET_DB detected — dropping all tables for fresh schema");
+    await db.exec(`DROP TABLE IF EXISTS products`);
+    await db.exec(`DROP TABLE IF EXISTS product_media`);
+    await db.exec(`DROP TABLE IF EXISTS whatsapp_sync_queue`);
+    await db.exec(`DROP TABLE IF EXISTS whatsapp_catalog`);
+    await db.exec(`DROP TABLE IF EXISTS active_room_state`);
+    await db.exec(`DROP TABLE IF EXISTS categories`);
+    await db.exec(`DROP TABLE IF EXISTS sync_state`);
+  }
   // 1. Categories
   await db.exec(`CREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE);`);
 
