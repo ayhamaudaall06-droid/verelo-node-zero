@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verelo | Factory Control</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-warm: #F8F6F1;
+            --bg-cream: #FDFCF8;
+            --text-primary: #1A1A1A;
+            --text-secondary: #666666;
+            --text-muted: #999999;
+            --glass-white: rgba(255, 255, 255, 0.72);
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.06);
+            --shadow-lift: 0 12px 48px rgba(0, 0, 0, 0.12);
+            --wake: #FFD700;
+            --rest: #1B3B6F;
+            --fuel: #FF9500;
+            --self: #8B5CF6;
+            --care: #FFFFFF;
+            --play: #FF2D92;
+            --grow: #34D399;
+            --move: #C0C0C0;
+            --font-brand: 'Caveat', cursive;
+            --font-ui: 'Inter', sans-serif;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+        body { font-family: var(--font-ui); background: var(--bg-warm); color: var(--text-primary); line-height: 1.6; overflow-x: hidden; }
+        .glass { background: var(--glass-white); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border: 1px solid var(--glass-border); box-shadow: var(--shadow-soft); }
+        header { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .logo-mark { width: 32px; height: 32px; background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.4) 100%); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.6); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: var(--font-brand); font-weight: 700; font-size: 1.5rem; color: var(--text-primary); box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .logo-text { font-family: var(--font-brand); font-size: 1.75rem; font-weight: 700; color: var(--text-primary); letter-spacing: -0.02em; }
+        .factory-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(27, 59, 111, 0.08); color: var(--rest); padding: 8px 16px; border-radius: 100px; font-family: var(--font-ui); font-size: 0.875rem; font-weight: 600; border: 1px solid rgba(27, 59, 111, 0.15); }
+        .hero { min-height: 40vh; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 120px 20px 60px; position: relative; overflow: hidden; background: linear-gradient(135deg, #f5f3ed 0%, #ebe7dd 50%, #f0ece4 100%); }
+        .hero::before { content: ''; position: absolute; top: -50%; left: -50%; right: -50%; bottom: -50%; background-image: linear-gradient(rgba(0,0,0,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.02) 1px, transparent 1px); background-size: 40px 40px; animation: gridMove 30s linear infinite; pointer-events: none; }
+        @keyframes gridMove { 0% { transform: translate(0, 0); } 100% { transform: translate(40px, 40px); } }
+        .hero-content { max-width: 800px; width: 100%; z-index: 2; position: relative; text-align: center; }
+        .hero-title { font-family: var(--font-brand); font-size: 3.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 12px; letter-spacing: -0.02em; }
+        .hero-subtitle { font-family: var(--font-brand); font-size: 1.5rem; font-weight: 400; color: var(--text-muted); font-style: italic; }
+        .section { padding: 80px 20px; background: var(--bg-cream); }
+        .section-header { text-align: center; margin-bottom: 64px; }
+        .section-title { font-family: var(--font-brand); font-size: 2rem; font-weight: 600; color: var(--text-primary); margin-bottom: 12px; }
+        .section-subtitle { font-family: var(--font-ui); font-size: 1rem; color: var(--text-muted); font-weight: 400; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; max-width: 1200px; margin: 0 auto; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+        .form-card { background: #111118; border: 1px solid #222; border-radius: 24px; padding: 40px; color: #fff; }
+        .form-card h2 { font-family: var(--font-brand); font-size: 2rem; font-weight: 600; margin-bottom: 32px; color: #fff; }
+        .form-group { margin-bottom: 24px; }
+        .form-group label { display: block; font-family: var(--font-ui); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: #888; margin-bottom: 10px; font-weight: 500; }
+        .form-group input, .form-group select { width: 100%; padding: 14px 16px; background: #0a0a0f; border: 1px solid #333; border-radius: 12px; color: #fff; font-family: var(--font-ui); font-size: 1rem; transition: all 0.2s; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--grow); box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.1); }
+        .drop-zone { border: 2px dashed #333; border-radius: 16px; padding: 48px 24px; text-align: center; color: #666; cursor: pointer; transition: all 0.3s ease; font-family: var(--font-ui); font-size: 0.875rem; }
+        .drop-zone:hover { border-color: var(--grow); color: var(--grow); background: rgba(52, 211, 153, 0.03); }
+        .drop-zone.active { border-color: var(--grow); background: rgba(52, 211, 153, 0.06); color: var(--grow); }
+        .btn { padding: 16px 32px; border-radius: 100px; border: none; font-family: var(--font-brand); font-size: 1.25rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 0.05em; }
+        .btn-primary { background: var(--grow); color: #000; }
+        .btn-primary:hover { transform: scale(1.05); box-shadow: 0 8px 24px rgba(52, 211, 153, 0.3); }
+        .btn-danger { background: transparent; border: 2px solid var(--play); color: var(--play); }
+        .btn-danger:hover { background: var(--play); color: #fff; transform: scale(1.05); }
+        .product-list { display: flex; flex-direction: column; gap: 16px; }
+        .product-card { background: var(--glass-white); backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: 24px; padding: 24px; display: flex; align-items: center; gap: 20px; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: var(--shadow-soft); }
+        .product-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+        .product-card img { width: 72px; height: 72px; object-fit: cover; border-radius: 16px; background: #1a1a2e; flex-shrink: 0; }
+        .product-info { flex: 1; min-width: 0; }
+        .product-sku { font-family: var(--font-ui); font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+        .product-name { font-family: var(--font-brand); font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .product-meta { font-family: var(--font-ui); font-size: 0.875rem; color: var(--text-secondary); }
+        .status-badge { padding: 6px 14px; border-radius: 100px; font-family: var(--font-ui); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0; }
+        .status-draft { background: rgba(27, 59, 111, 0.1); color: var(--rest); border: 1px solid rgba(27, 59, 111, 0.2); }
+        .status-live { background: rgba(52, 211, 153, 0.15); color: #059669; border: 1px solid rgba(52, 211, 153, 0.3); }
+        .status-vaulted { background: rgba(192, 192, 192, 0.2); color: #666; border: 1px solid rgba(192, 192, 192, 0.4); }
+        .status-scheduled { background: rgba(255, 149, 0, 0.1); color: #c2410c; border: 1px solid rgba(255, 149, 0, 0.2); }
+        .push-btn { margin-left: auto; flex-shrink: 0; }
+        .alert { position: fixed; top: 100px; right: 40px; padding: 16px 24px; border-radius: 16px; font-family: var(--font-ui); font-size: 0.875rem; font-weight: 500; z-index: 200; display: none; animation: slideIn 0.4s ease; backdrop-filter: blur(20px); border: 1px solid var(--glass-border); box-shadow: var(--shadow-lift); }
+        @keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .alert.success { background: rgba(52, 211, 153, 0.15); color: #059669; display: block; }
+        .alert.error { background: rgba(255, 59, 48, 0.1); color: #dc2626; display: block; }
+        .states-section { padding: 100px 20px; background: var(--bg-warm); }
+        .states-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+        @media (max-width: 900px) { .states-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 500px) { .states-grid { grid-template-columns: 1fr; } }
+        .state-card { border-radius: 24px; padding: 32px; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; cursor: pointer; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.4s ease; box-shadow: var(--shadow-soft); }
+        .state-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(180deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 100%); pointer-events: none; }
+        .state-card:hover { transform: translateY(-4px) scale(1.02); box-shadow: var(--shadow-lift); }
+        .state-rest { background: var(--rest); color: white; }
+        .state-fuel { background: var(--fuel); }
+        .state-grow { background: var(--grow); }
+        .state-move { background: var(--move); }
+        .state-label { font-family: var(--font-brand); font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.8; z-index: 1; }
+        .state-title { font-family: var(--font-brand); font-size: 2.5rem; font-weight: 700; z-index: 1; line-height: 1.2; }
+        .state-count { font-family: var(--font-ui); font-size: 0.875rem; opacity: 0.7; z-index: 1; margin-top: 4px; }
+        .state-emoji { font-size: 2rem; position: absolute; bottom: 24px; right: 24px; opacity: 0.3; z-index: 1; }
+        footer { background: var(--text-primary); color: white; padding: 60px 20px 40px; text-align: center; }
+        .footer-brand { font-family: var(--font-brand); font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
+        .footer-copy { font-family: var(--font-ui); font-size: 0.875rem; color: rgba(255, 255, 255, 0.4); }
+        @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+    </style>
+</head>
+<body>
+
+    <header class="glass">
+        <a href="/" class="logo">
+            <div class="logo-mark">V</div>
+            <span class="logo-text">Verelo</span>
+        </a>
+        <div class="factory-badge">Factory Control</div>
+    </header>
+
+    <section class="hero">
+        <div class="hero-content">
+            <h1 class="hero-title">Verelo Studio</h1>
+            <p class="hero-subtitle">Ingest. Review. Broadcast.</p>
+        </div>
+    </section>
+
+    <div id="alert" class="alert"></div>
+
+    <section class="section">
+        <div class="grid">
+            <div class="form-card">
+                <h2>Add New Product</h2>
+                
+                <div class="form-group">
+                    <label>SKU</label>
+                    <input type="text" id="sku" placeholder="VER-ESS-001">
+                </div>
+                
+                <div class="form-group">
+                    <label>Product Name</label>
+                    <input type="text" id="name" placeholder="Premium Lentils">
+                </div>
+                
+                <div class="form-group">
+                    <label>Price (USD)</label>
+                    <input type="number" id="price" step="0.01" placeholder="5.00">
+                </div>
+                
+                <div class="form-group">
+                    <label>Initial Inventory</label>
+                    <input type="number" id="inventory" placeholder="0">
+                </div>
+                
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="category"><option value="">Loading...</option></select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Product Type</label>
+                    <select id="product_type">
+                        <option value="partner_trending">Partner Trending (Fast Shipping)</option>
+                        <option value="verelo_exclusive">Verelo Exclusive (Custom Box)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Product Image</label>
+                    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                        <div>Click or drag image here</div>
+                        <div style="font-size: 12px; margin-top: 8px; opacity: 0.5;">PNG, JPG up to 5MB</div>
+                    </div>
+                    <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handleFile(this.files[0])">
+                    <div id="uploadStatus" style="margin-top: 12px; font-size: 12px; color: #888;"></div>
+                </div>
+                
+                <button class="btn btn-primary" onclick="createProduct()" style="width: 100%; margin-top: 8px;">Save as Draft</button>
+            </div>
+            
+            <div>
+                <h2 style="font-family: var(--font-brand); font-size: 2rem; font-weight: 600; margin-bottom: 32px; color: var(--text-primary);">Inventory</h2>
+                <div id="productList" class="product-list">
+                    <div style="color: var(--text-muted); font-family: var(--font-ui);">Loading products...</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="states-section">
+        <div class="section-header">
+            <h2 class="section-title">Product States</h2>
+            <p class="section-subtitle">The lifecycle from studio to doorstep</p>
+        </div>
+        
+        <div class="states-grid">
+            <div class="state-card state-rest" onclick="filterByState('draft')">
+                <span class="state-label">In Studio</span>
+                <div>
+                    <h3 class="state-title">Draft</h3>
+                    <div class="state-count" id="count-draft">0 products</div>
+                </div>
+                <span class="state-emoji">✍️</span>
+            </div>
+            
+            <div class="state-card state-fuel" onclick="filterByState('scheduled')">
+                <span class="state-label">Queued</span>
+                <div>
+                    <h3 class="state-title">Scheduled</h3>
+                    <div class="state-count" id="count-scheduled">0 products</div>
+                </div>
+                <span class="state-emoji">⏳</span>
+            </div>
+            
+            <div class="state-card state-grow" onclick="filterByState('live')">
+                <span class="state-label">On Air</span>
+                <div>
+                    <h3 class="state-title">Live</h3>
+                    <div class="state-count" id="count-live">0 products</div>
+                </div>
+                <span class="state-emoji">📡</span>
+            </div>
+            
+            <div class="state-card state-move" onclick="filterByState('vaulted')">
+                <span class="state-label">Archived</span>
+                <div>
+                    <h3 class="state-title">Vaulted</h3>
+                    <div class="state-count" id="count-vaulted">0 products</div>
+                </div>
+                <span class="state-emoji">🗄️</span>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <p class="footer-brand">Verelo</p>
+        <p class="footer-copy">© 2026 Verelo Studio. Node Zero Coordination Layer.</p>
+    </footer>
+
+    <script>
+        let uploadedImageUrl = 'https://verelo.app/placeholder-logo.png';
+        let allProducts = [];
+        let categories = [];
+        
+        async function loadCategories() {
+            const res = await fetch('/api/admin/categories');
+            categories = await res.json();
+            const select = document.getElementById('category');
+            select.innerHTML = categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        }
+        
+        async function loadProducts() {
+            const res = await fetch('/api/admin/products');
+            allProducts = await res.json();
+            renderProducts(allProducts);
+            updateStateCounts(allProducts);
+        }
+        
+        function renderProducts(products) {
+            const container = document.getElementById('productList');
+            if (products.length === 0) {
+                container.innerHTML = '<div style="color: var(--text-muted); font-family: var(--font-ui);">No products yet.</div>';
+                return;
+            }
+            container.innerHTML = products.map(p => `
+                <div class="product-card">
+                    <img src="${p.image_url}" alt="" onerror="this.src='https://verelo.app/placeholder-logo.png'">
+                    <div class="product-info">
+                        <div class="product-sku">${p.sku}</div>
+                        <div class="product-name">${p.name}</div>
+                        <div class="product-meta">$${p.price} • ${p.inventory_count} in stock • ${p.category_name || 'No category'}</div>
+                    </div>
+                    <div class="status-badge status-${p.status}">${p.status}</div>
+                    ${p.status === 'draft' ? `
+                        <button class="btn btn-danger push-btn" onclick="pushToStream('${p.id}')">PUSH TO STREAM</button>
+                    ` : '<div style="color: var(--grow); font-size: 0.75rem; font-weight: 600;">● Live</div>'}
+                </div>
+            `).join('');
+        }
+        
+        function updateStateCounts(products) {
+            const counts = { draft: 0, scheduled: 0, live: 0, vaulted: 0 };
+            products.forEach(p => { if (counts[p.status] !== undefined) counts[p.status]++; });
+            document.getElementById('count-draft').textContent = `${counts.draft} product${counts.draft !== 1 ? 's' : ''}`;
+            document.getElementById('count-scheduled').textContent = `${counts.scheduled} product${counts.scheduled !== 1 ? 's' : ''}`;
+            document.getElementById('count-live').textContent = `${counts.live} product${counts.live !== 1 ? 's' : ''}`;
+            document.getElementById('count-vaulted').textContent = `${counts.vaulted} product${counts.vaulted !== 1 ? 's' : ''}`;
+        }
+        
+        function filterByState(state) {
+            const filtered = allProducts.filter(p => p.status === state);
+            renderProducts(filtered);
+            showAlert('success', `Showing ${filtered.length} ${state} product${filtered.length !== 1 ? 's' : ''}`);
+            document.querySelector('.section').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        async function handleFile(file) {
+            if (!file) return;
+            const status = document.getElementById('uploadStatus');
+            status.textContent = 'Requesting upload permission...';
+            status.style.color = '#888';
+            try {
+                const res = await fetch('/api/admin/upload-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: file.name, contentType: file.type })
+                });
+                const { presignedUrl, publicUrl } = await res.json();
+                status.textContent = 'Uploading to Cloudflare...';
+                await fetch(presignedUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+                uploadedImageUrl = publicUrl;
+                status.innerHTML = '<span style="color: var(--grow);">✓ Image uploaded</span>';
+                document.getElementById('dropZone').classList.add('active');
+            } catch (err) {
+                status.innerHTML = `<span style="color: var(--play);">✗ ${err.message}</span>`;
+            }
+        }
+        
+        async function createProduct() {
+            const payload = {
+                sku: document.getElementById('sku').value,
+                name: document.getElementById('name').value,
+                price: parseFloat(document.getElementById('price').value),
+                inventory_count: parseInt(document.getElementById('inventory').value) || 0,
+                category_id: parseInt(document.getElementById('category').value),
+                product_type: document.getElementById('product_type').value,
+                image_url: uploadedImageUrl
+            };
+            const res = await fetch('/api/admin/products', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            showAlert(data.id ? 'success' : 'error', data.message || data.error);
+            if (data.id) {
+                document.getElementById('sku').value = '';
+                document.getElementById('name').value = '';
+                document.getElementById('price').value = '';
+                document.getElementById('inventory').value = '';
+                uploadedImageUrl = 'https://verelo.app/placeholder-logo.png';
+                document.getElementById('uploadStatus').textContent = '';
+                document.getElementById('dropZone').classList.remove('active');
+                loadProducts();
+            }
+        }
+        
+        async function pushToStream(productId) {
+            if (!confirm('This will broadcast the product LIVE to the stream. Continue?')) return;
+            const res = await fetch('/api/admin/push-to-stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_id: productId })
+            });
+            const data = await res.json();
+            showAlert(data.success ? 'success' : 'error', data.success ? `Pushed ${data.sku || data.product_id} live` : data.error);
+            loadProducts();
+        }
+        
+        function showAlert(type, msg) {
+            const el = document.getElementById('alert');
+            el.className = `alert ${type}`;
+            el.textContent = msg;
+            setTimeout(() => el.className = 'alert', 4000);
+        }
+        
+        loadCategories();
+        loadProducts();
+    </script>
+</body>
+</html>

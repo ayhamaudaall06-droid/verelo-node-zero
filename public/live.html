@@ -216,8 +216,19 @@ async function loadActiveProduct() {
 loadActiveProduct();
  {
         const LIVEKIT_URL = 'wss://verelo-factory-1.livekit.cloud'; // Change to your URL
-        const TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJ2aWRlbyI6eyJyb29tSm9pbiI6dHJ1ZSwicm9vbSI6InZlcmVsby1mYWN0b3J5LTEiLCJjYW5QdWJsaXNoIjpmYWxzZSwiY2FuU3Vic2NyaWJlIjp0cnVlfSwiaXNzIjoiQVBJQmd3M2tGWFVBMkNKIiwiZXhwIjoxNzc2NzM4NTU4LCJuYmYiOjE3NzY3MTY5NTgsInN1YiI6InZpZXdlci0xIn0.nw6rdHuOclg0rbGon_0kcDzml62CfzV_4ZTfEaSNTeM'; // Change to your token endpoint
-        
+async function getToken(roomName) {
+  const res = await fetch('/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ room: roomName })
+  });
+  const data = await res.json();
+  return data.token;
+}
+
+// Inside connect():
+const TOKEN = await getToken('verelo-factory-1');
+await room.connect(LIVEKIT_URL, TOKEN);        
         document.getElementById('loader').textContent = 'Joining room...';
         
         room = new Room({

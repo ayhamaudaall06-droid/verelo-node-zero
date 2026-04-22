@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Verelo v2 - Latency Test</title>
+  <style>
+    body { font-family: monospace; background: #3A2B1C; color: #fff; padding: 20px; }
+    #log { background: #1a1a1a; padding: 10px; height: 300px; overflow-y: scroll; margin-top: 10px; font-size: 12px; }
+    .metric { color: #00ff00; font-weight: bold; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Digital Twin Bridge - Latency Test</h1>
+  <div>Status: <span id="status">Initializing...</span></div>
+  <div>Latency: <span id="latency" class="metric">--</span> ms</div>
+  <div>Messages: <span id="count">0</span></div>
+  <button id="sendBtn">Send Test Message</button>
+  <div id="log"></div>
+
+  <script>
+    const ws = new WebSocket('ws://localhost:1884');
+    ws.binaryType = 'arraybuffer'; // Critical for binary data
+    
+    let messageCount = 0;
+    let latencies = [];
+    let pendingStart = null;
+    const logDiv = document.getElementById('log');
+    const statusSpan = document.getElementById('status');
+    
+    function log(msg) {
+      const time = new Date().toLocaleTimeString();
+      logDiv.innerHTML += `[${time}] ${msg}<br>`;
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+    
+    ws.onopen = () => {
+      statusSpan.textContent = 'Connected (WebSocket)';
+      statusSpan.style.color = '#00ff00';
+      log('Connected to M4 Edge Node');
+    };
+    
+    ws.onmessage = (event) => {
+      const received = performance.now();
+      messageCount++;
+      document.getElementById('count').textContent = messageCount;
+      
+      // Handle binary data
+      const data = new Uint8Array(event.data);
+      log(`Received: ${data.length} bytes [${Array.from(data.slice(0,4)).map(b=>b.toString(16)).join(' ')}]`);
+      
+      // Calculate latency if we have a pending start time
+      if (pendingStart) {
+        const elapsed = Math.floor(received - pendingStart);
+        latencies.push(elapsed);
+        const avg = Math.floor(latencies.reduce((a,b) => a+b, 0) / latencies.length);
+        document.getElementById('latency').textContent = avg;
+        log(`Round-trip: ${elapsed}ms (avg: ${avg}ms)`);
+        pendingStart = null;
+      }
+    };
+    
+    ws.onerror = () => {
+      statusSpan.textContent = 'Error';
+      statusSpan.style.color = '#ff0000';
+      log('WebSocket error');
+    };
+    
+    document.getElementById('sendBtn').addEventListener('click', () => {
+      if (ws.readyState !== WebSocket.OPEN) {
+        log('Not connected');
+        return;
+      }
+      
+      pendingStart = performance.now();
+      const payload = new Uint8Array([0x01, 0xAB, 0xCD, 0xFF, 0x00, 0x00, 0xFF, 0x00]);
+      ws.send(payload);
+      log('Sent binary payload');
+    });
+  </script>
+</body>
+</html>

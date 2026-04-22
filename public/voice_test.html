@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Verelo v2 - Voice Commit</title>
+  <style>
+    body { font-family: monospace; background: #3A2B1C; color: #fff; padding: 20px; text-align: center; }
+    #stateDisplay { margin: 20px; padding: 20px; background: #1a1a1a; border-radius: 10px; font-size: 24px; }
+    button { padding: 20px 40px; font-size: 18px; margin: 10px; cursor: pointer; display: none; }
+    #startBtn { display: inline-block; background: #2d5a2d; color: white; }
+    #holdBtn { background: #2d5a2d; color: white; }
+    #voiceBtn { background: #5a2d2d; color: white; }
+    .recording { animation: pulse 1s infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    #log { text-align: left; background: #000; padding: 10px; margin-top: 20px; font-size: 12px; height: 150px; overflow-y: scroll; }
+    .active { display: inline-block !important; }
+  </style>
+</head>
+<body>
+  <h1>🔐 Voice Commit Test</h1>
+  
+  <div id="stateDisplay">State: <span id="currentState">ACQUIRED</span></div>
+  
+  <button id="startBtn" onclick="startJourney()">START JOURNEY</button>
+  <button id="holdBtn" onmousedown="startHold()" onmouseup="endHold()" ontouchstart="startHold()" ontouchend="endHold()">HOLD TO CONFIRM (3s)</button>
+  <button id="voiceBtn" onclick="toggleVoice()">RECORD GREETING (5s)</button>
+
+  <div id="log"></div>
+
+  <script>
+    let sessionId = 'test_' + Date.now();
+    let vectorClock = 0;
+    let currentState = 'ACQUIRED';
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let recording = false;
+    let holdStart = null;
+    let holdTimer = null;
+
+    function log(msg) {
+      const div = document.getElementById('log');
+      div.innerHTML += `[${new Date().toLocaleTimeString()}] ${msg}<br>`;
+      div.scrollTop = div.scrollHeight;
+    }
+
+    async function transition(targetState, payload = {}) {
+      try {
+        const res = await fetch('/api/state/transition', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: sessionId,
+            idempotency_key: `step_${Date.now()}`,
+            target_state: targetState,
+            payload: payload,
+            vector_clock: vectorClock
+          })
+        });
+        const result = await res.json();
+        if (result.status === 'COMMITTED' || result.status === 'IDEMPOTENT') {
+          vectorClock = result.vector_clock;
+          currentState = result.state;
+          document.getElementById('currentState').textContent = currentState;
+          log(`✓ Transitioned to ${currentState}`);
+          updateButtons();
+          return true;
+        }
+      } catch (err) {
+        log('✗ Error: ' + err.message);
+        return false;
+      }
+    }
+
+    function updateButtons() {
+      document.getElementById('startBtn').classList.remove('active');
+      document.getElementById('holdBtn').classList.remove('active');
+      document.getElementById('voiceBtn').classList.remove('active');
+      
+      if (currentState === 'ACQUIRED') {
+        document.getElementById('startBtn').classList.add('active');
+        document.getElementById('startBtn').textContent = 'START JOURNEY';
+      } else if (currentState === 'QUALIFIED') {
+        document.getElementById('startBtn').classList.add('active');
+        document.getElementById('startBtn').textContent = 'SELECT MORNING BOX';
+      } else if (currentState === 'CURATED_SELECTED') {
+        document.getElementById('startBtn').classList.add('active');
+        document.getElementById('startBtn').textContent = 'CUSTOMIZE BOX';
+      } else if (currentState === 'DYNAMIC_ASSEMBLING') {
+        transition('CUSTOMIZING').then(() => transition('VALIDATED'));
+      } else if (currentState === 'VALIDATED') {
+        document.getElementById('holdBtn').classList.add('active');
+        document.getElementById('voiceBtn').classList.add('active');
+      }
+    }
+
+    async function startJourney() {
+      if (currentState === 'ACQUIRED') {
+        await transition('INTENT_CAP');
+        await transition('QUALIFIED');
+      } else if (currentState === 'QUALIFIED') {
+        await transition('CURATED_SELECTED', { box_id: 'box_morning_001' });
+      } else if (currentState === 'CURATED_SELECTED') {
+        await transition('DYNAMIC_ASSEMBLING', { source_box_id: 'box_morning_001' });
+      }
+    }
+
+    // SILENT MODE
+    function startHold() {
+      if (currentState !== 'VALIDATED') return;
+      holdStart = Date.now();
+      document.getElementById('holdBtn').classList.add('recording');
+      
+      holdTimer = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - holdStart) / 1000);
+        if (elapsed >= 3) {
+          document.getElementById('holdBtn').style.background = '#00ff00';
+        }
+      }, 100);
+    }
+
+    function endHold() {
+      clearInterval(holdTimer);
+      document.getElementById('holdBtn').classList.remove('recording');
+      const elapsed = Date.now() - holdStart;
+      
+      if (elapsed >= 3000) {
+        sendCommit('SILENT', null);
+      } else {
+        log('✗ Hold too short');
+        document.getElementById('holdBtn').style.background = '#2d5a2d';
+      }
+    }
+
+    // VOICE MODE
+    async function toggleVoice() {
+      if (currentState !== 'VALIDATED') return;
+      
+      if (recording) {
+        mediaRecorder.stop();
+        recording = false;
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        
+        mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+        
+        mediaRecorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const buffer = await audioBlob.arrayBuffer();
+          log('Voice recorded: ' + buffer.byteLength + ' bytes');
+          sendCommit('VOICE', new Uint8Array(buffer));
+          stream.getTracks().forEach(track => track.stop());
+        };
+        
+        mediaRecorder.start();
+        recording = true;
+        document.getElementById('voiceBtn').classList.add('recording');
+        document.getElementById('voiceBtn').textContent = 'STOP RECORDING';
+        
+        setTimeout(() => {
+          if (recording) {
+            mediaRecorder.stop();
+            recording = false;
+            document.getElementById('voiceBtn').classList.remove('recording');
+            document.getElementById('voiceBtn').textContent = 'RECORD GREETING (5s)';
+          }
+        }, 5000);
+      } catch (err) {
+        log('✗ Mic access denied');
+      }
+    }
+
+    async function sendCommit(mode, buffer) {
+      try {
+        const res = await fetch('/api/commit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: sessionId,
+            mode: mode,
+            voice_buffer: buffer ? Array.from(buffer) : null,
+            vector_clock: vectorClock
+          })
+        });
+        const result = await res.json();
+        if (result.status === 'COMMITTED') {
+          log('✓✓✓ ORDER COMMITTED: ' + JSON.stringify(result));
+          currentState = 'COMMITTED';
+          document.getElementById('currentState').textContent = 'COMMITTED';
+          document.getElementById('holdBtn').style.display = 'none';
+          document.getElementById('voiceBtn').style.display = 'none';
+        } else {
+          log('Commit result: ' + JSON.stringify(result));
+        }
+      } catch (err) {
+        log('✗ Commit error: ' + err.message);
+      }
+    }
+
+    // Init
+    log('Session: ' + sessionId);
+    updateButtons();
+  </script>
+</body>
+</html>

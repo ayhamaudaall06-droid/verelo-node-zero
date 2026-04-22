@@ -10,7 +10,6 @@ const DB_PATH = process.env.DATABASE_URL || './data/verelo.db';
 let db = null;
 
 async function init() {
-  // Ensure data directory exists
   const dataDir = './data';
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
@@ -21,11 +20,9 @@ async function init() {
     driver: sqlite3.Database
   });
 
-  // Enable WAL mode for concurrent reads/writes
   await db.exec('PRAGMA journal_mode = WAL;');
   await db.exec('PRAGMA foreign_keys = ON;');
-  
-  // Create state table if not exists
+
   await db.exec(`
     CREATE TABLE IF NOT EXISTS user_states (
       user_id TEXT PRIMARY KEY,
@@ -33,6 +30,24 @@ async function init() {
       step INTEGER DEFAULT 0,
       context TEXT DEFAULT '{}',
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await db.exec(`DROP TABLE IF EXISTS whatsapp_sync_queue`);
+
+  await db.exec(`
+    CREATE TABLE whatsapp_sync_queue (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id TEXT NOT NULL,
+      message TEXT,
+      direction TEXT,
+      status TEXT DEFAULT 'pending',
+      timestamp_ms INTEGER,
+      processed_at INTEGER,
+      error_count INTEGER DEFAULT 0,
+      error_message TEXT,
+      retry_count INTEGER DEFAULT 0,
+      created_at INTEGER DEFAULT (unixepoch())
     )
   `);
 
@@ -55,7 +70,7 @@ async function getState(userId) {
 async function saveState(userId, state) {
   if (!db) throw new Error('Database not initialized');
   await db.run(
-    `INSERT INTO user_states (user_id, lane, step, context, updated_at) 
+    `INSERT INTO user_states (user_id, lane, step, context, updated_at)
      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
      ON CONFLICT(user_id) DO UPDATE SET
      lane = excluded.lane,
@@ -80,12 +95,11 @@ async function close() {
   if (db) await db.close();
 }
 
-// Export the init function and db methods
 export default {
   init,
   getState,
   saveState,
   healthCheck,
   close,
-  get db() { return db; } // Getter to access db directly if needed
+  get db() { return db; }
 };

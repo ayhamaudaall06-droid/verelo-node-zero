@@ -1,66 +1,74 @@
-import { createClient } from 'redis';
-import { z } from 'zod';
+let redis = null;
 
-const redis = createClient({ 
-  url: process.env.REDIS_URL || 'redis://localhost:6379' 
-});
-
-redis.on('error', (err) => console.error('[REDIS] Connection error:', err));
-await redis.connect();
-
-// Outbound WhatsApp queue schema
-const OutboundSchema = z.object({
-  to: z.string(),
-  type: z.enum(['text', 'interactive', 'template']),
-  body: z.string(),
-  metadata: z.object({}).optional()
-});
-
-export const outQueue = {
-  async add(job) {
-    const validated = OutboundSchema.parse(job);
-    await redis.lPush('whatsapp:outbound', JSON.stringify(validated));
-    console.log(`[QUEUE:OUT] Job queued for ${validated.to}`);
-  },
-  
-  async get() {
-    // brPop returns [key, element] or null
-    const result = await redis.brPop('whatsapp:outbound', 0);
-    return result ? JSON.parse(result.element) : null;
+async function getRedis() {
+  if (redis) return redis;
+  if (!process.env.REDIS_URL || process.env.REDIS_URL.includes('railway.internal')) return null;
+  try {
+    const { createClient } = await import('redis');
+    redis = createClient({ url: process.env.REDIS_URL });
+    redis.on('error', (err) => console.error('[REDIS] Connection error:', err));
+    await redis.connect();
+    return redis;
+  } catch (e) {
+    console.log('[Redis] Queue unavailable, using SQLite fallback');
+    return null;
   }
-};
+}
 
-// Inbound processor
-export const inQueue = {
-  async add(message) {
-    await redis.lPush('whatsapp:inbound', JSON.stringify(message));
-  },
-  
-  async process(handler) {
-    console.log('[QUEUE:IN] Inbound processor started');
-    while (true) {
-      try {
-        // brPop with timeout 0 waits indefinitely
-        const result = await redis.brPop('whatsapp:inbound', 0);
-        if (result) {
-          const data = JSON.parse(result.element);
-          await handler(data).catch(console.error);
-        }
-      } catch (err) {
-        console.error('[QUEUE:IN] Processing error:', err);
-        await new Promise(r => setTimeout(r, 1000));
-      }
-    }
+export async function enqueueOutbound(message) {
+  const r = await getRedis();
+  if (!r) {
+    console.log('[Queue] Redis unavailable, skipping outbound enqueue');
+    return;
   }
-};
+  const validated = validateMessage(message);
+  if (!validated) return;
+  await r.lPush('whatsapp:outbound', JSON.stringify(validated));
+}
+
+export async function dequeueOutbound() {
+  const r = await getRedis();
+  if (!r) return null;
+  const result = await r.brPop('whatsapp:outbound', 0);
+  return result ? JSON.parse(result.element) : null;
+}
+
+export async function enqueueInbound(message) {
+  const r = await getRedis();
+  if (!r) {
+    console.log('[Queue] Redis unavailable, skipping inbound enqueue');
+    return;
+  }
+  await r.lPush('whatsapp:inbound', JSON.stringify(message));
+}
+
+export async function dequeueInbound() {
+  const r = await getRedis();
+  if (!r) return null;
+  const result = await r.brPop('whatsapp:inbound', 0);
+  return result ? JSON.parse(result.element) : null;
+}
 
 export async function healthCheck() {
+  const r = await getRedis();
+  if (!r) return false;
   try {
-    await redis.ping();
+    await r.ping();
     return true;
   } catch {
     return false;
   }
 }
 
-export default redis;
+function validateMessage(msg) {
+  if (!msg || typeof msg !== 'object') return null;
+  if (!msg.to || !msg.body) return null;
+  return msg;
+}
+
+export default { enqueueOutbound, dequeueOutbound, enqueueInbound, dequeueInbound, healthCheck };
+
+// Legacy compatibility export for whatsappHandler.js
+export const outQueue = {
+  add: enqueueOutbound
+};

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Warehouse | Verelo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .header {
+      background: #1a1a1a;
+      padding: 15px 20px;
+      border-bottom: 2px solid #333;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .status { color: #4ade80; font-size: 14px; }
+    .status.offline { color: #ef4444; }
+    
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      gap: 20px;
+    }
+    
+    .preview-box {
+      background: #1a1a1a;
+      border: 3px solid #333;
+      border-radius: 15px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transition: border-color 0.3s;
+    }
+    
+    .preview-box.active { border-color: #4ade80; }
+    
+    .box-visual {
+      width: 250px;
+      height: 180px;
+      background: #3A2B1C;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 60px;
+      transition: all 0.2s ease;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+      position: relative;
+    }
+    
+    .box-visual::after {
+      content: 'BOX PREVIEW';
+      position: absolute;
+      bottom: 10px;
+      font-size: 12px;
+      opacity: 0.5;
+      letter-spacing: 2px;
+    }
+    
+    .info-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      right: 20px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+    }
+    
+    .session-id { color: #666; }
+    .latency { 
+      color: #4ade80; 
+      font-family: monospace; 
+      background: rgba(0,0,0,0.5);
+      padding: 5px 10px;
+      border-radius: 5px;
+    }
+    
+    .items-panel {
+      background: #1a1a1a;
+      border-radius: 15px;
+      padding: 20px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    
+    .items-panel h3 {
+      color: #888;
+      font-size: 12px;
+      text-transform: uppercase;
+      margin-bottom: 15px;
+      letter-spacing: 1px;
+    }
+    
+    .queue-item {
+      background: #2a2a2a;
+      padding: 12px 15px;
+      margin-bottom: 8px;
+      border-radius: 8px;
+      border-left: 3px solid #3A2B1C;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    
+    .queue-item.active { border-left-color: #4ade80; }
+    
+    .footer {
+      background: #1a1a1a;
+      padding: 15px 20px;
+      border-top: 2px solid #333;
+      font-size: 12px;
+      color: #666;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h2>Warehouse Display</h2>
+      <div class="status" id="conn-status">Connecting to M4...</div>
+    </div>
+    <div style="text-align: right; font-size: 12px; color: #666;">
+      <div id="conn-type">Waiting</div>
+      <div id="msg-count">Messages: 0</div>
+    </div>
+  </div>
+  
+  <div class="main">
+    <div class="preview-box" id="preview-box">
+      <div class="info-panel">
+        <div class="session-id" id="session-display">No active session</div>
+        <div class="latency" id="latency-display">-- ms</div>
+      </div>
+      
+      <div class="box-visual" id="box-visual">📦</div>
+      
+      <div style="margin-top: 30px; text-align: center;">
+        <div id="design-status" style="color: #666; font-size: 16px; margin-bottom: 5px;">Standby</div>
+        <div id="last-update" style="color: #444; font-size: 12px;">--</div>
+      </div>
+    </div>
+    
+    <div class="items-panel">
+      <h3>Assembly Queue</h3>
+      <div id="queue-container">
+        <div style="color: #555; text-align: center; padding: 20px;">
+          Waiting for customer orders...
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="footer">
+    Verelo Digital Twin Protocol | M4 Edge Node
+  </div>
+
+  <script>
+    // Get WebSocket URL (auto-detect host)
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.hostname}:1884`;
+    
+    const ws = new WebSocket(wsUrl);
+    ws.binaryType = 'arraybuffer';
+    
+    let msgCount = 0;
+    let currentSession = null;
+    const queue = [];
+    
+    ws.onopen = () => {
+      document.getElementById('conn-status').textContent = 'Connected to M4 Edge';
+      document.getElementById('conn-status').classList.remove('offline');
+      document.getElementById('conn-type').textContent = 'WebSocket Live';
+    };
+    
+    ws.onmessage = (e) => {
+      msgCount++;
+      document.getElementById('msg-count').textContent = `Messages: ${msgCount}`;
+      
+      const data = new Uint8Array(e.data);
+      
+      // Parse binary protocol
+      // Format: [msgType(1), sessionHigh(1), sessionLow(1), R(1), G(1), B(1), A(1), mode(1), ...timestamp]
+      if (data.length >= 8) {
+        const msgType = data[0];
+        const sessionHash = (data[1] << 8) | data[2];
+        const color = {
+          r: data[3],
+          g: data[4],
+          b: data[5],
+          a: data[6] / 255
+        };
+        const mode = data[7];
+        
+        const sessionId = 'BOX-' + sessionHash.toString(16).toUpperCase();
+        const colorCss = `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a})`;
+        
+        // Update display
+        const box = document.getElementById('preview-box');
+        const visual = document.getElementById('box-visual');
+        const sessionDisplay = document.getElementById('session-display');
+        const statusText = document.getElementById('design-status');
+        const lastUpdate = document.getElementById('last-update');
+        
+        // New session?
+        if (currentSession !== sessionId) {
+          currentSession = sessionId;
+          box.classList.add('active');
+          addToQueue(sessionId, 'In Progress');
+        }
+        
+        // Apply color
+        visual.style.background = colorCss;
+        visual.style.boxShadow = `0 0 50px ${colorCss}`;
+        
+        // Update info
+        sessionDisplay.textContent = sessionId;
+        statusText.textContent = mode === 1 ? '🔒 COMMIT LOCKED' : '🎨 Live Design';
+        statusText.style.color = mode === 1 ? '#4ade80' : '#3A2B1C';
+        lastUpdate.textContent = new Date().toLocaleTimeString();
+        
+        // Extract latency from timestamp (last 6 bytes if present)
+        if (data.length > 8) {
+          const timeBytes = data.slice(-6);
+          const sentTime = parseInt(Array.from(timeBytes).map(b => String.fromCharCode(b)).join(''));
+          if (sentTime) {
+            const latency = Date.now() - parseInt(Date.now().toString().slice(0, -6) + sentTime);
+            document.getElementById('latency-display').textContent = Math.abs(latency) + ' ms';
+          }
+        }
+      }
+    };
+    
+    ws.onclose = () => {
+      document.getElementById('conn-status').textContent = 'Disconnected';
+      document.getElementById('conn-status').classList.add('offline');
+    };
+    
+    ws.onerror = (err) => {
+      console.error('WS Error:', err);
+      document.getElementById('conn-status').textContent = 'Connection Error';
+    };
+    
+    function addToQueue(id, status) {
+      const container = document.getElementById('queue-container');
+      const existing = document.getElementById('item-' + id);
+      
+      if (!existing) {
+        const div = document.createElement('div');
+        div.className = 'queue-item active';
+        div.id = 'item-' + id;
+        div.innerHTML = `
+          <div>
+            <div style="color: #fff; font-weight: bold;">${id}</div>
+            <div style="color: #888; font-size: 12px;">Morning Box (2 items)</div>
+          </div>
+          <div style="color: #4ade80; font-size: 12px;">${status}</div>
+        `;
+        container.prepend(div);
+        
+        // Keep only last 5
+        while (container.children.length > 5) {
+          container.removeChild(container.lastChild);
+        }
+      }
+    }
+  </script>
+</body>
+</html>
