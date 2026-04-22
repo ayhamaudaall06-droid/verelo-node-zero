@@ -1,16 +1,16 @@
 import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
-import { dirname } from 'path';
+import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DB_PATH = process.env.DATABASE_URL || './data/verelo.db';
+const DB_PATH = process.env.DATABASE_URL || join(__dirname, '../../data/verelo.db');
 
 let db = null;
 
 async function init() {
-  const dataDir = './data';
+  const dataDir = dirname(DB_PATH);
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
   }
@@ -34,7 +34,7 @@ async function init() {
     )
   `);
 
-  // 2. WhatsApp Sync Queue (Fixing the 'priority' error)
+  // 2. WhatsApp Sync Queue
   await db.exec(`
     CREATE TABLE IF NOT EXISTS whatsapp_sync_queue (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,7 +51,33 @@ async function init() {
     )
   `);
 
-  console.log('[DB] SQLite initialized with WAL mode and priority column');
+  // 3. Categories
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE
+    )
+  `);
+
+  // 4. Products (The missing piece)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS products (
+      id TEXT PRIMARY KEY,
+      sku TEXT UNIQUE,
+      name TEXT,
+      price REAL,
+      inventory_count INTEGER DEFAULT 0,
+      category_id INTEGER,
+      status TEXT DEFAULT 'draft',
+      product_type TEXT,
+      image_url TEXT,
+      created_at INTEGER,
+      updated_at INTEGER,
+      FOREIGN KEY(category_id) REFERENCES categories(id)
+    )
+  `);
+
+  console.log('[DB] SQLite fully initialized with all tables');
   return db;
 }
 
@@ -73,8 +99,4 @@ async function healthCheck() {
   try { await db.get('SELECT 1'); return true; } catch { return false; }
 }
 
-async function close() {
-  if (db) await db.close();
-}
-
-export default { init, getState, saveState, healthCheck, close, get db() { return db; } };
+export default { init, getState, saveState, healthCheck, get db() { return db; } };
