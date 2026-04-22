@@ -17,17 +17,13 @@ async function init() {
   await db.exec('PRAGMA journal_mode = WAL;');
   await db.exec('PRAGMA foreign_keys = ON;');
 
-  // Nuclear option: reset schema if env var set (one-time use)
-  if (process.env.RESET_DB === 'true') {
-    console.warn("[DB] RESET_DB detected — dropping all tables for fresh schema");
-    await db.exec(`DROP TABLE IF EXISTS products`);
-    await db.exec(`DROP TABLE IF EXISTS product_media`);
-    await db.exec(`DROP TABLE IF EXISTS whatsapp_sync_queue`);
-    await db.exec(`DROP TABLE IF EXISTS whatsapp_catalog`);
-    await db.exec(`DROP TABLE IF EXISTS active_room_state`);
-    await db.exec(`DROP TABLE IF EXISTS categories`);
-    await db.exec(`DROP TABLE IF EXISTS sync_state`);
-    await db.exec(`DROP TABLE IF EXISTS user_states`);
+  // ── Helper: ensure column exists ──
+  async function ensureColumn(table, col, def) {
+    const info = await db.all(`PRAGMA table_info(${table})`);
+    if (!info.find(c => c.name === col)) {
+      await db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+      console.log(`[DB] Added column ${table}.${col}`);
+    }
   }
 
   // ── 1. CATEGORIES ──
@@ -39,40 +35,37 @@ async function init() {
     )
   `);
 
-  // Seed categories if empty
   const catCount = await db.get(`SELECT COUNT(*) as c FROM categories`);
   if (catCount.c === 0) {
     const cats = ['Verelo Home Essentials', 'Verelo Wellness', 'Verelo Quick Kitchen', 'Verelo Comfort & Care'];
-    for (const c of cats) {
-      await db.run(`INSERT OR IGNORE INTO categories (name) VALUES (?)`, [c]);
-    }
+    for (const c of cats) await db.run(`INSERT OR IGNORE INTO categories (name) VALUES (?)`, [c]);
     console.log('[DB] Seeded categories');
   }
 
-  // ── 2. PRODUCTS ──
+  // ── 2. PRODUCTS (create + migrate) ──
   await db.exec(`
     CREATE TABLE IF NOT EXISTS products (
       id TEXT PRIMARY KEY,
       sku TEXT UNIQUE NOT NULL,
       name TEXT NOT NULL,
-      description TEXT,
       price REAL NOT NULL,
-      currency TEXT DEFAULT 'USD',
-      category TEXT,
-      box_type TEXT CHECK(box_type IN ('trending','factory','limited','vault')),
-      inventory_count INTEGER DEFAULT 0,
-      is_active BOOLEAN DEFAULT 1,
-      metadata_json TEXT,
-      category_id INTEGER,
-      status TEXT DEFAULT 'draft',
-      product_type TEXT DEFAULT 'partner_trending',
-      image_url TEXT DEFAULT 'https://verelo.app/placeholder-logo.png',
       created_at INTEGER,
       updated_at INTEGER
     )
   `);
+  await ensureColumn('products', 'description', 'TEXT');
+  await ensureColumn('products', 'currency', "TEXT DEFAULT 'USD'");
+  await ensureColumn('products', 'category', 'TEXT');
+  await ensureColumn('products', 'box_type', "TEXT CHECK(box_type IN ('trending','factory','limited','vault'))");
+  await ensureColumn('products', 'inventory_count', 'INTEGER DEFAULT 0');
+  await ensureColumn('products', 'is_active', 'BOOLEAN DEFAULT 1');
+  await ensureColumn('products', 'metadata_json', 'TEXT');
+  await ensureColumn('products', 'category_id', 'INTEGER');
+  await ensureColumn('products', 'status', "TEXT DEFAULT 'draft'");
+  await ensureColumn('products', 'product_type', "TEXT DEFAULT 'partner_trending'");
+  await ensureColumn('products', 'image_url', "TEXT DEFAULT 'https://verelo.app/placeholder-logo.png'");
 
-  // Generated columns
+  // Generated columns (SQLite 3.31+)
   const genCols = [
     { name: 'size', expr: `json_extract(metadata_json, '$.size')` },
     { name: 'color', expr: `json_extract(metadata_json, '$.color')` },
@@ -80,9 +73,8 @@ async function init() {
     { name: 'ai_generated', expr: `CASE WHEN json_extract(metadata_json, '$.source') = 'ai' THEN 1 ELSE 0 END` }
   ];
   for (const col of genCols) {
-    try {
-      await db.exec(`ALTER TABLE products ADD COLUMN ${col.name} TEXT GENERATED ALWAYS AS (${col.expr}) VIRTUAL`);
-    } catch (e) { /* exists */ }
+    try { await db.exec(`ALTER TABLE products ADD COLUMN ${col.name} TEXT GENERATED ALWAYS AS (${col.expr}) VIRTUAL`); }
+    catch (e) { /* exists */ }
   }
 
   await db.exec(`CREATE INDEX IF NOT EXISTS idx_products_box ON products(box_type, is_active) WHERE is_active = 1`);
@@ -93,30 +85,32 @@ async function init() {
     CREATE TABLE IF NOT EXISTS product_media (
       id TEXT PRIMARY KEY,
       product_id TEXT REFERENCES products(id) ON DELETE CASCADE,
-      type TEXT CHECK(type IN ('image','video','3d')),
       url TEXT NOT NULL,
-      cdn_url TEXT,
-      sort_order INTEGER DEFAULT 0,
-      is_primary BOOLEAN DEFAULT 0,
-      asset_source TEXT CHECK(asset_source IN ('physical_photo','ai_character','ai_lifestyle','video_render')),
-      platform_whitelist TEXT DEFAULT 'all'
+      created_at INTEGER
     )
   `);
+  await ensureColumn('product_media', 'type', "TEXT CHECK(type IN ('image','video','3d'))");
+  await ensureColumn('product_media', 'cdn_url', 'TEXT');
+  await ensureColumn('product_media', 'sort_order', 'INTEGER DEFAULT 0');
+  await ensureColumn('product_media', 'is_primary', 'BOOLEAN DEFAULT 0');
+  await ensureColumn('product_media', 'asset_source', "TEXT CHECK(asset_source IN ('physical_photo','ai_character','ai_lifestyle','video_render'))");
+  await ensureColumn('product_media', 'platform_whitelist', "TEXT DEFAULT 'all'");
   await db.exec(`CREATE INDEX IF NOT EXISTS idx_media_product ON product_media(product_id, sort_order)`);
 
-  // ── 4. SYNC STATE ──
+  // ── 4. WHATSAPP SYNC QUEUE ──
   await db.exec(`
-    CREATE TABLE IF NOT EXISTS sync_state (
+    CREATE TABLE IF NOT EXISTS whatsapp_sync_queue (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      product_id TEXT,
-      target_platform TEXT CHECK(target_platform IN ('whatsapp','livekit','web','shadow')),
-      status TEXT CHECK(status IN ('pending','synced','failed')),
-      payload_hash TEXT,
-      error_log TEXT,
-      synced_at INTEGER
+      product_id TEXT NOT NULL,
+      created_at INTEGER
     )
   `);
-  await db.exec(`CREATE INDEX IF NOT EXISTS idx_sync_pending ON sync_state(status, target_platform) WHERE status = 'pending'`);
+  await ensureColumn('whatsapp_sync_queue', 'sync_type', "TEXT CHECK(sync_type IN ('inventory','price','full'))");
+  await ensureColumn('whatsapp_sync_queue', 'priority', 'INTEGER DEFAULT 0');
+  await ensureColumn('whatsapp_sync_queue', 'payload_json', 'TEXT NOT NULL');
+  await ensureColumn('whatsapp_sync_queue', 'processed_at', 'INTEGER');
+  await ensureColumn('whatsapp_sync_queue', 'error_count', 'INTEGER DEFAULT 0');
+  await db.exec(`CREATE INDEX IF NOT EXISTS idx_whatsapp_queue_pending ON whatsapp_sync_queue(processed_at, priority, created_at) WHERE processed_at IS NULL`);
 
   // ── 5. WHATSAPP CATALOG ──
   await db.exec(`
@@ -129,26 +123,7 @@ async function init() {
     )
   `);
 
-  // ── 6. WHATSAPP SYNC QUEUE (CORRECT SCHEMA) ──
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS whatsapp_sync_queue (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      product_id TEXT NOT NULL,
-      sync_type TEXT CHECK(sync_type IN ('inventory','price','full')),
-      priority INTEGER DEFAULT 0,
-      payload_json TEXT NOT NULL,
-      created_at INTEGER DEFAULT (strftime('%s','now')),
-      processed_at INTEGER,
-      error_count INTEGER DEFAULT 0
-    )
-  `);
-  await db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_whatsapp_queue_pending 
-    ON whatsapp_sync_queue(processed_at, priority, created_at) 
-    WHERE processed_at IS NULL
-  `);
-
-  // ── 7. ACTIVE ROOM STATE ──
+  // ── 6. ACTIVE ROOM STATE ──
   await db.exec(`
     CREATE TABLE IF NOT EXISTS active_room_state (
       room_name TEXT PRIMARY KEY,
@@ -158,7 +133,7 @@ async function init() {
     )
   `);
 
-  // ── 8. USER STATES ──
+  // ── 7. USER STATES ──
   await db.exec(`
     CREATE TABLE IF NOT EXISTS user_states (
       user_id TEXT PRIMARY KEY,
@@ -169,7 +144,7 @@ async function init() {
     )
   `);
 
-  console.log('[DB] Verelo Node Zero: Full schema initialized and seeded.');
+  console.log('[DB] Verelo Node Zero: Schema migrated and ready.');
   return db;
 }
 
