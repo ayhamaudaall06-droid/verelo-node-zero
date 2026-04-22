@@ -15,23 +15,22 @@ dotenv.config();
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
-
 // ── 1. STATIC FILES ──
-app.use(express.static(join(process.cwd(), 'public')));
+// Use __dirname and step up one directory to reliably hit 'public' on Railway
+const publicPath = join(__dirname, '../public');
+app.use(express.static(publicPath));
 
 // Explicit routes for nested HTML files
 app.get('/live.html', (req, res) => {
-  res.sendFile(join(process.cwd(), 'public', 'live.html'));
+  res.sendFile(join(publicPath, 'live.html'));
 });
 
 app.get('/admin/products.html', (req, res) => {
-  try {
-    const html = readFileSync(join(process.cwd(), 'public', 'admin', 'products.html'), 'utf8');
-    res.setHeader('Content-Type', 'text/html');
-    res.send(html);
-  } catch (e) {
-    res.status(500).send('File error: ' + e.message);
-  }
+  res.sendFile(join(publicPath, 'admin', 'products.html'), (err) => {
+    if (err) {
+      res.status(500).send('File error: ' + err.message);
+    }
+  });
 });
 
 app.get('/admin', (req, res) => {
