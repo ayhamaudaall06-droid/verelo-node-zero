@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import { readdirSync, existsSync } from 'fs';\nimport { readdirSync, existsSync } from 'fs';\nimport crypto from 'crypto';
 import { getPresignedUploadUrl } from './services/r2Presign.js';
 import { AccessToken } from 'livekit-server-sdk';
 import { getActiveProduct } from './services/activeProductStore.js';
@@ -164,6 +164,19 @@ app.post('/api/admin/push-to-stream', async (req, res) => {
 
 
 // ── 6. FALLBACK 404 ──
+app.get('/debug/files', (req, res) => {
+  const publicPath = join(__dirname, '..', 'public');
+  const srcPath = __dirname;
+  const rootPath = join(__dirname, '..');
+  const result = {
+    public_path: publicPath,
+    public_exists: existsSync(publicPath),
+    public_contents: existsSync(publicPath) ? readdirSync(publicPath) : [],
+    src_path: srcPath,
+    root_contents: existsSync(rootPath) ? readdirSync(rootPath) : []
+  };
+  res.json(result);
+});
 app.use((req, res) => {
   res.status(404).send(`Cannot GET ${req.path}`);
 });
