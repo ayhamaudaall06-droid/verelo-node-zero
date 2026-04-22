@@ -10,21 +10,27 @@ import { dirname, join } from 'path';
 import dbModule from './services/db.js';
 import apiRoutes from './routes/api.js';
 import { startWhatsAppSyncWorker } from './services/whatsappSyncWorker.js';
+
 dotenv.config();
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 
-// ── 1. STATIC FILES (must be first, before API routes) ──
+// ── 1. STATIC FILES ──
 app.use(express.static(join(__dirname, '..', 'public')));
 
-// Explicit fallback for live.html until static middleware is fully trusted
+// Explicit routes for nested HTML files
 app.get('/live.html', (req, res) => {
-app.get('/admin/products.html', (req, res) => {
-  res.sendFile(join(__dirname, '..', 'public', 'admin', 'products.html'));
-});  res.sendFile(join(__dirname, '..', 'public', 'live.html'));
+  res.sendFile(join(__dirname, '..', 'public', 'live.html'));
 });
 
+app.get('/admin/products.html', (req, res) => {
+  res.sendFile(join(__dirname, '..', 'public', 'admin', 'products.html'));
+});
+
+app.get('/admin', (req, res) => {
+  res.redirect('/admin/products.html');
+});
 // ── 2. PARSERS ──
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
