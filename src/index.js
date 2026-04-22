@@ -17,15 +17,15 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 
 // ── 1. STATIC FILES ──
-app.use(express.static(join(__dirname, '..', 'public')));
+app.use(express.static(join(process.cwd(), 'public')));
 
 // Explicit routes for nested HTML files
 app.get('/live.html', (req, res) => {
-  res.sendFile(join(__dirname, '..', 'public', 'live.html'));
+  res.sendFile(join(process.cwd(), 'public', 'live.html'));
 });
 
 app.get('/admin/products.html', (req, res) => {
-  res.sendFile(join(__dirname, '..', 'public', 'admin', 'products.html'));
+  res.sendFile(join(process.cwd(), 'public', 'admin', 'products.html'));
 });
 
 app.get('/admin', (req, res) => {
@@ -170,7 +170,7 @@ app.post('/api/admin/push-to-stream', async (req, res) => {
 
 // ── 6. FALLBACK 404 ──
 app.get('/debug/files', (req, res) => {
-  const publicPath = join(__dirname, '..', 'public');
+  const publicPath = join(process.cwd(), 'public');
   const srcPath = __dirname;
   const rootPath = join(__dirname, '..');
   const result = {
