@@ -40,6 +40,46 @@ async function init() {
     const cats = ['Verelo Home Essentials', 'Verelo Wellness', 'Verelo Quick Kitchen', 'Verelo Comfort & Care'];
     for (const c of cats) await db.run(`INSERT OR IGNORE INTO categories (name) VALUES (?)`, [c]);
     console.log('[DB] Seeded categories');
+  // Seed products if empty
+  const prodCount = await db.get(`SELECT COUNT(*) as c FROM products`);
+  if (prodCount.c === 0) {
+    const products = [
+      {sku:"VER-ESS-001",name:"Verelo Rice (5kg)",price:12.00,cat:"Verelo Home Essentials"},
+      {sku:"VER-ESS-002",name:"Pasta Selection",price:4.50,cat:"Verelo Home Essentials"},
+      {sku:"VER-ESS-003",name:"Premium Lentils",price:5.00,cat:"Verelo Home Essentials"},
+      {sku:"VER-ESS-004",name:"All-Purpose Flour",price:3.50,cat:"Verelo Home Essentials"},
+      {sku:"VER-CLN-001",name:"Heavy-Duty Laundry Detergent",price:15.00,cat:"Verelo Home Essentials"},
+      {sku:"VER-CLN-002",name:"Dish Soap & Sponges Bundle",price:8.00,cat:"Verelo Home Essentials"},
+      {sku:"VER-PAP-001",name:"Premium Toilet Paper (12-Pack)",price:10.00,cat:"Verelo Home Essentials"},
+      {sku:"VER-BAB-001",name:"Hypoallergenic Baby Wipes",price:6.00,cat:"Verelo Wellness"},
+      {sku:"VER-BAB-002",name:"Verelo Baby Formula",price:25.00,cat:"Verelo Wellness"},
+      {sku:"VER-AID-001",name:"Basic Pharmacy Kit",price:18.00,cat:"Verelo Wellness"},
+      {sku:"VER-HYD-001",name:"Bottled Water Case & Hydration Packets",price:14.00,cat:"Verelo Wellness"},
+      {sku:"VER-TEC-001",name:"Emergency Tech Kit",price:22.00,cat:"Verelo Wellness"},
+      {sku:"VER-KIT-001",name:"Ready-Made Pasta Sauce",price:6.00,cat:"Verelo Quick Kitchen"},
+      {sku:"VER-KIT-002",name:"Premium Noodles",price:4.00,cat:"Verelo Quick Kitchen"},
+      {sku:"VER-KIT-003",name:"Canned Tuna (3-Pack)",price:7.50,cat:"Verelo Quick Kitchen"},
+      {sku:"VER-KIT-004",name:"Artisan Spices & Oils Set",price:19.00,cat:"Verelo Quick Kitchen"},
+      {sku:"VER-KIT-005",name:"Family Juice Boxes (10-Pack)",price:8.00,cat:"Verelo Quick Kitchen"},
+      {sku:"VER-COM-001",name:"The Coffee Ritual (Premium Beans)",price:18.00,cat:"Verelo Comfort & Care"},
+      {sku:"VER-COM-002",name:"Specialty Teas & Mug Set",price:20.00,cat:"Verelo Comfort & Care"},
+      {sku:"VER-COM-003",name:"Imported Chocolate Selection",price:15.00,cat:"Verelo Comfort & Care"},
+      {sku:"VER-SLF-001",name:"Facial Cleanser & Moisturizer Set",price:24.00,cat:"Verelo Comfort & Care"},
+      {sku:"VER-SEA-001",name:"Limited Factory Special (Seasonal)",price:30.00,cat:"Verelo Comfort & Care"}
+    ];
+    for (const p of products) {
+      const cat = await db.get(`SELECT id FROM categories WHERE name = ?`, [p.cat]);
+      if (cat) {
+        await db.run(
+          `INSERT INTO products (id, sku, name, price, inventory_count, category_id, status, product_type, image_url, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, 'draft', 'partner_trending', 'https://verelo.app/placeholder-logo.png', ?, ?)`,
+          [crypto.randomUUID(), p.sku, p.name, p.price, 0, cat.id, Date.now(), Date.now()]
+        );
+      }
+    }
+    console.log('[DB] Seeded 22 products');
+  }
+
   }
 
   // ── 2. PRODUCTS (create + migrate) ──
