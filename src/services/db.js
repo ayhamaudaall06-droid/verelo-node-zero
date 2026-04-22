@@ -16,9 +16,11 @@ async function init() {
   db = await open({ filename: DB_PATH, driver: sqlite3.Database });
   await db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
 
-  // 1. Table Creation
+  // 1. Categories
+  await db.exec(`CREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE);`);
+
+  // 2. Products
   await db.exec(`
-    CREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE);
     CREATE TABLE IF NOT EXISTS products (
       id TEXT PRIMARY KEY, sku TEXT UNIQUE, name TEXT, price REAL, 
       inventory_count INTEGER DEFAULT 0, category_id INTEGER, 
@@ -26,29 +28,50 @@ async function init() {
       created_at INTEGER, updated_at INTEGER,
       FOREIGN KEY(category_id) REFERENCES categories(id)
     );
+  `);
+
+  // 3. WhatsApp Sync Queue (Full Schema with processed_at)
+  await db.exec(`
     CREATE TABLE IF NOT EXISTS whatsapp_sync_queue (
-      id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL, 
-      product_id TEXT, sync_type TEXT, priority INTEGER DEFAULT 0, 
-      payload TEXT, status TEXT DEFAULT 'pending', created_at INTEGER DEFAULT (unixepoch())
-    );
+      id INTEGER PRIMARY KEY AUTOINCREMENT, 
+      session_id TEXT NOT NULL, 
+      product_id TEXT, 
+      sync_type TEXT, 
+      priority INTEGER DEFAULT 0, 
+      payload TEXT, 
+      status TEXT DEFAULT 'pending', 
+      error_count INTEGER DEFAULT 0,
+      error_message TEXT,
+      created_at INTEGER DEFAULT (unixepoch()),
+      processed_at INTEGER
+    )
+  `);
+
+  // 4. User States
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS user_states (
+      user_id TEXT PRIMARY KEY,
+      lane TEXT CHECK(lane IN ('INTAKE', 'FAST', 'GUIDED', 'DEEP_BROWSE')),
+      step INTEGER DEFAULT 0,
+      context TEXT DEFAULT '{}',
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
   `);
 
   await seed();
-  console.log('[DB] Verelo Node Zero: Tables initialized and seeded.');
+  console.log('[DB] Verelo Node Zero: Full schema initialized and seeded.');
   return db;
 }
 
 async function seed() {
-  // Seed Categories
   const cats = ['Home Essentials', 'Wellness', 'Quick Kitchen', 'Collections'];
   for (const name of cats) {
     await db.run('INSERT OR IGNORE INTO categories (name) VALUES (?)', name);
   }
 
-  // Seed 22 Products if empty
   const count = await db.get('SELECT COUNT(*) as c FROM products');
   if (count.c === 0) {
-    console.log('[DB] Empty table detected. Seeding 22 products...');
+    console.log('[DB] Seeding 22 products...');
     for (let i = 1; i <= 22; i++) {
       const id = `prod-${String(i).padStart(3, '0')}`;
       await db.run(
@@ -60,4 +83,10 @@ async function seed() {
   }
 }
 
-export default { init, get db() { return db; } };
+export default { 
+  init, 
+  get db() { return db; },
+  getState: async (id) => db.get('SELECT * FROM user_states WHERE user_id = ?', id),
+  saveState: async (id, s) => db.run('INSERT INTO user_states (user_id, lane, step, context) VALUES (?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET lane=excluded.lane, step=excluded.step, context=excluded.context', [id, s.lane, s.step, JSON.stringify(s.context)]),
+  healthCheck: async () => { try { await db.get('SELECT 1'); return true; } catch { return false; } }
+};
