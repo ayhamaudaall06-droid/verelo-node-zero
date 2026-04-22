@@ -16,9 +16,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 
 // ── 1. STATIC FILES ──
-const publicPath = join(__dirname, '..', 'public');
+const publicPath = join(process.cwd(), 'public');
 app.use(express.static(publicPath));
-
+console.log('[Static] Serving from:', publicPath, '- exists:', existsSync(publicPath));
 app.get('/admin/products.html', (req, res) => {
   try {
     const html = readFileSync(join(publicPath, 'admin', 'products.html'), 'utf8');
