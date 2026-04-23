@@ -33,8 +33,6 @@ router.post('/webhook/whatsapp', async (req, res) => {
   console.log(`[API] Queued from ${message.from}`);
 });
 
-export default router;
-
 // ── PRODUCTS API ──
 import { DatabaseSync } from 'node:sqlite';
 import { join } from 'path';
