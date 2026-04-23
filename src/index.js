@@ -156,38 +156,28 @@ app.use((err, req, res, next) => {
 
 // ── START ──
 const PORT = process.env.PORT || 8080;
+
+// ── INIT DB + SEED ──
+await dbModule.init();
+const seedDb = new DatabaseSync(join(process.cwd(), 'data', 'verelo.db'));
+const count = seedDb.prepare('SELECT COUNT(*) as c FROM products').get();
+if (count.c === 0) {
+  seedDb.prepare(`
+    INSERT INTO products (id, sku, name, description, price, currency, category, box_type, inventory_count, is_active, metadata_json, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    'PROD-001', 'COFFEE-001', 'Ethiopian Yirgacheffe', 'Single-origin light roast, 250g',
+    24.00, 'USD', 'coffee', 'trending', 50, 1,
+    '{"size":"250g","material":"beans","customization":["grind_size","roast_level"]}',
+    Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000)
+  );
+  console.log('[Seed] Demo product created');
+} else {
+  console.log('[Seed] Products already exist:', count.c);
+}
+seedDb.close();
+
 app.listen(PORT, () => {
   console.log(`[API] Verelo Core Live on ${PORT}`);
   startWhatsAppSyncWorker().catch(console.error);
 });
-
-// ── AUTO-SEED DEMO PRODUCT (if empty) ──
-function seedIfEmpty() {
-  const db = new DatabaseSync(join(process.cwd(), 'data', 'verelo.db'));
-  const count = db.prepare('SELECT COUNT(*) as c FROM products').get();
-  if (count.c === 0) {
-    db.prepare(`
-      INSERT INTO products (id, sku, name, description, price, currency, category, box_type, inventory_count, is_active, metadata_json, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      'PROD-001',
-      'COFFEE-001',
-      'Ethiopian Yirgacheffe',
-      'Single-origin light roast, 250g',
-      24.00,
-      'USD',
-      'coffee',
-      'trending',
-      50,
-      1,
-      '{"size":"250g","material":"beans","customization":["grind_size","roast_level"]}',
-      Math.floor(Date.now() / 1000),
-      Math.floor(Date.now() / 1000)
-    );
-    console.log('[Seed] Demo product created');
-  } else {
-    console.log('[Seed] Products already exist:', count.c);
-  }
-  db.close();
-}
-seedIfEmpty();
