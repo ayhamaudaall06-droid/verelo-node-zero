@@ -7,7 +7,6 @@ import express from 'express';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { DatabaseSync } from 'node:sqlite';
 import dbModule from './services/db.js';
 import apiRoutes from './routes/api.js';
 import { startWhatsAppSyncWorker } from './services/whatsappSyncWorker.js';
@@ -154,22 +153,14 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// ── START ──
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-  console.log(`[API] Verelo Core Live on ${PORT}`);
-  startWhatsAppSyncWorker().catch(console.error);
-});
-
 // ── AUTO-SEED DEMO PRODUCT (if empty) ──
-function seedIfEmpty() {
-  const db = new DatabaseSync(join(process.cwd(), 'data', 'verelo.db'));
-  const count = db.prepare('SELECT COUNT(*) as c FROM products').get();
+async function seedIfEmpty() {
+  const db = dbModule.db;
+  const count = await db.get('SELECT COUNT(*) as c FROM products');
   if (count.c === 0) {
-    db.prepare(`
-      INSERT INTO products (id, sku, name, description, price, currency, category, box_type, inventory_count, is_active, metadata_json, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    await db.run(
+      `INSERT INTO products (id, sku, name, description, price, currency, category, box_type, inventory_count, is_active, metadata_json, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       'PROD-001',
       'COFFEE-001',
       'Ethiopian Yirgacheffe',
@@ -188,6 +179,15 @@ function seedIfEmpty() {
   } else {
     console.log('[Seed] Products already exist:', count.c);
   }
-  db.close();
 }
-seedIfEmpty();
+
+// ── START ──
+const PORT = process.env.PORT || 8080;
+(async () => {
+  await dbModule.init();
+  await seedIfEmpty();
+  app.listen(PORT, () => {
+    console.log(`[API] Verelo Core Live on ${PORT}`);
+    startWhatsAppSyncWorker().catch(console.error);
+  });
+})();
