@@ -7,38 +7,32 @@ import express from 'express';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { DatabaseSync } from 'node:sqlite';
 import dbModule from './services/db.js';
 import apiRoutes from './routes/api.js';
 import { startWhatsAppSyncWorker } from './services/whatsappSyncWorker.js';
+
+import { DatabaseSync } from 'node:sqlite';
 import { setActiveProduct, clearActiveProduct, getActiveProductFromDB } from './services/livekitProductBridge.js';
 
 dotenv.config();
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const publicPath = join(process.cwd(), 'public');
 
-console.log('[Static] Serving from:', publicPath, '- exists:', existsSync(publicPath));
-
-// ── MIDDLEWARE ──
-app.use(express.json());
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
-  next();
-});
-
-// ── STATIC FILES (must be BEFORE routes) ──
+// ── STATIC FILES ──
 app.use(express.static(publicPath));
 
-// ── MOUNT API ROUTES from api.js at /api ──
-app.use('/api', apiRoutes);
+// ── EXPLICIT HTML ROUTES (bulletproof) ──
+app.get('/', (req, res) => res.sendFile(join(publicPath, 'index.html')));
+app.get('/index.html', (req, res) => res.sendFile(join(publicPath, 'index.html')));
+app.get('/admin.html', (req, res) => res.sendFile(join(publicPath, 'admin.html')));
+app.get('/live.html', (req, res) => res.sendFile(join(publicPath, 'live.html')));
 
-// ── HEALTH ──
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
+console.log('[Static] Middleware active for:', publicPath);
+
+
+console.log('[Static] Serving from:', publicPath, '- exists:', existsSync(publicPath));
 
 // ── DEBUG ──
 app.get('/debug/files', (req, res) => {
@@ -51,6 +45,17 @@ app.get('/debug/files', (req, res) => {
     admin_contents: existsSync(join(publicDir, 'admin')) ? readdirSync(join(publicDir, 'admin')) : []
   });
 });
+
+
+// ── 404 ──
+app.use((req, res) => res.status(404).send(`Cannot GET ${req.path}`));
+
+// ── ERROR ──
+app.use((err, req, res, next) => {
+  console.error('[Server Error]', err.message);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
 
 // ── LIVEKIT ROOM METADATA ──
 app.post('/api/livekit/room-metadata', async (req, res) => {
@@ -139,23 +144,9 @@ app.post('/api/order/:id/confirm', (req, res) => {
   res.json({ ok: true, order, whatsapp_status: 'queued' });
 });
 
-// ── EXPLICIT HTML ROUTES (guaranteed delivery) ──
-app.get('/', (req, res) => res.sendFile(join(publicPath, 'index.html')));
-app.get('/index.html', (req, res) => res.sendFile(join(publicPath, 'index.html')));
-app.get('/admin.html', (req, res) => res.sendFile(join(publicPath, 'admin.html')));
-app.get('/live.html', (req, res) => res.sendFile(join(publicPath, 'live.html')));
-
-// ── 404 ──
-app.use((req, res) => res.status(404).send(`Cannot GET ${req.path}`));
-
-// ── ERROR ──
-app.use((err, req, res, next) => {
-  console.error('[Server Error]', err.message);
-  res.status(500).json({ error: 'Internal server error' });
-});
-
 // ── START ──
 const PORT = process.env.PORT || 8080;
+
 app.listen(PORT, () => {
   console.log(`[API] Verelo Core Live on ${PORT}`);
   startWhatsAppSyncWorker().catch(console.error);

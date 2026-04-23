@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verelo Live — Factory Stream</title>
+  <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.5.0/dist/livekit-client.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f5f3ef;
+      --card: rgba(255,255,255,0.82);
+      --accent: #c45c3e;
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --border: rgba(0,0,0,0.06);
+      --glass: blur(24px) saturate(1.4);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+    
+    /* Video Grid */
+    #video-grid {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      grid-template-columns: 1fr;
+      grid-template-rows: 1fr;
+      z-index: 1;
+    }
+    #video-grid video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    /* Header */
+    .header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      padding: 20px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.35), transparent);
+      color: white;
+    }
+    .logo { font-family: 'Caveat', cursive; font-size: 28px; font-weight: 600; }
+    .live-badge {
+      background: rgba(196,92,62,0.9);
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .live-badge::before {
+      content: '';
+      width: 8px; height: 8px;
+      background: white;
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    
+    /* Product Overlay */
+    #product-overlay {
+      position: fixed;
+      bottom: 28px;
+      left: 28px;
+      right: 28px;
+      z-index: 20;
+      display: none;
+      animation: slideUp 0.5s cubic-bezier(0.16,1,0.3,1);
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(40px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .product-card {
+      background: var(--card);
+      backdrop-filter: var(--glass);
+      -webkit-backdrop-filter: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 20px;
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      max-width: 520px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+    }
+    .product-image {
+      width: 90px; height: 90px;
+      border-radius: 14px;
+      object-fit: cover;
+      background: #e8e6e1;
+      flex-shrink: 0;
+    }
+    .product-info { flex: 1; min-width: 0; }
+    .product-name {
+      font-size: 17px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .product-meta {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .product-price {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    
+    /* Action Buttons */
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .btn {
+      padding: 10px 20px;
+      border-radius: 12px;
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+    .btn-primary:hover { background: #a84d32; transform: translateY(-1px); }
+    .btn-secondary {
+      background: rgba(0,0,0,0.06);
+      color: var(--text);
+    }
+    .btn-secondary:hover { background: rgba(0,0,0,0.1); }
+    
+    /* Box Drawer */
+    #box-drawer {
+      position: fixed;
+      right: -380px;
+      top: 0; bottom: 0;
+      width: 360px;
+      background: var(--card);
+      backdrop-filter: var(--glass);
+      -webkit-backdrop-filter: var(--glass);
+      border-left: 1px solid var(--border);
+      z-index: 30;
+      padding: 24px;
+      transition: right 0.4s cubic-bezier(0.16,1,0.3,1);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+    #box-drawer.open { right: 0; }
+    .drawer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .drawer-title { font-size: 20px; font-weight: 600; }
+    .close-btn {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(0,0,0,0.06);
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .box-item {
+      background: white;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+      border: 1px solid var(--border);
+    }
+    .box-item-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+    .box-item-price { color: var(--accent); font-weight: 600; font-size: 13px; }
+    
+    /* Customization */
+    .customize-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .chip {
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: white;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .chip:hover { border-color: var(--accent); }
+    .chip.selected {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+    
+    /* Empty State */
+    .box-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    
+    /* Confirmation Modal */
+    #confirm-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    #confirm-modal.show { display: flex; }
+    .modal-card {
+      background: white;
+      border-radius: 24px;
+      padding: 32px;
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+      animation: scaleIn 0.3s cubic-bezier(0.16,1,0.3,1);
+    }
+    @keyframes scaleIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .modal-title { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+    .modal-text { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+    .order-id {
+      font-family: monospace;
+      background: #f0eeea;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 20px;
+      display: inline-block;
+    }
+    
+    /* Box Toggle Button */
+    #box-toggle {
+      position: fixed;
+      right: 28px;
+      bottom: 28px;
+      z-index: 25;
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: var(--text);
+      color: white;
+      border: none;
+      font-size: 22px;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s;
+    }
+    #box-toggle:hover { transform: scale(1.05); }
+    #box-toggle .count {
+      position: absolute;
+      top: -4px; right: -4px;
+      background: var(--accent);
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid var(--bg);
+    }
+    
+    /* Connection status */
+    .conn-status {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 15;
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      background: rgba(0,0,0,0.6);
+      color: white;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .conn-status.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <div id="video-grid"></div>
+  
+  <div class="header">
+    <div class="logo">Verelo Live</div>
+    <div class="live-badge">LIVE</div>
+  </div>
+  
+  <div class="conn-status" id="conn-status">Connecting...</div>
+  
+  <div id="product-overlay">
+    <div class="product-card">
+      <img id="p-image" class="product-image" src="" alt="">
+      <div class="product-info">
+        <div id="p-name" class="product-name">Product Name</div>
+        <div id="p-meta" class="product-meta">Category • Size • Color</div>
+        <div id="p-price" class="product-price">$0.00</div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="addToBox()">Add to Box</button>
+        <button class="btn btn-secondary" onclick="openBox()">View Box</button>
+      </div>
+    </div>
+  </div>
+  
+  <div id="box-drawer">
+    <div class="drawer-header">
+      <div class="drawer-title">Your Box</div>
+      <button class="close-btn" onclick="closeBox()">×</button>
+    </div>
+    <div id="box-items"></div>
+    <div id="box-footer" style="margin-top:auto; padding-top:16px; border-top:1px solid var(--border); display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <span style="color:var(--muted); font-size:14px;">Total</span>
+        <span id="box-total" style="font-size:20px; font-weight:700; color:var(--accent);">$0.00</span>
+      </div>
+      <button class="btn btn-primary" style="width:100%; padding:14px;" onclick="confirmBox()">Confirm & Checkout</button>
+    </div>
+  </div>
+  
+  <button id="box-toggle" onclick="openBox()">
+    📦
+    <span class="count" id="box-count" style="display:none;">0</span>
+  </button>
+  
+  <div id="confirm-modal" onclick="if(event.target===this)closeModal()">
+    <div class="modal-card">
+      <div class="modal-title">Order Confirmed!</div>
+      <div class="modal-text">Your box has been reserved. We'll contact you via WhatsApp to finalize.</div>
+      <div id="modal-order-id" class="order-id">ORD-XXXX</div>
+      <button class="btn btn-primary" style="width:100%;" onclick="openWhatsApp()">Open WhatsApp</button>
+      <button class="btn btn-secondary" style="width:100%; margin-top:8px;" onclick="closeModal()">Close</button>
+    </div>
+  </div>
+
+  <script>
+    // ── CONFIG ──
+    const LIVEKIT_URL = 'wss://verelo.livekit.cloud';
+    const ROOM_NAME = 'verelo-factory';
+    let room = null;
+    let currentProduct = null;
+    let box = JSON.parse(localStorage.getItem('verelo_box') || '[]');
+    
+    // ── LIVEKIT CONNECTION ──
+    async function connect() {
+      showStatus('Connecting to factory stream...');
+      
+      try {
+        // Fetch token from your backend
+        const res = await fetch(`/api/voice/listen?room=${ROOM_NAME}`);
+        const data = await res.json();
+        
+        if (!data.token) throw new Error('No token received');
+        
+        room = new LivekitClient.Room({
+          adaptiveStream: true,
+          dynacast: true,
+        });
+        
+        room.on(LivekitClient.RoomEvent.Connected, () => {
+          showStatus('Connected', 2000);
+          console.log('[LiveKit] Connected to', ROOM_NAME);
+        });
+        
+        room.on(LivekitClient.RoomEvent.Disconnected, () => {
+          showStatus('Disconnected — reconnecting...');
+        });
+        
+        room.on(LivekitClient.RoomEvent.MediaDevicesError, (e) => {
+          console.warn('[LiveKit] Media error:', e);
+        });
+        
+        // ── CRITICAL: Room Metadata Changed ──
+        room.on(LivekitClient.RoomEvent.RoomMetadataChanged, (metadata) => {
+          console.log('[LiveKit] Room metadata updated:', metadata);
+          handleProductMetadata(metadata);
+        });
+        
+        // Also check initial metadata
+        room.on(LivekitClient.RoomEvent.Connected, () => {
+          if (room.metadata) handleProductMetadata(room.metadata);
+        });
+        
+        await room.connect(LIVEKIT_URL, data.token);
+        
+        // Subscribe to all video tracks
+        room.remoteParticipants.forEach(subscribeToTracks);
+        room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+          if (track.kind === 'video') attachVideo(track, participant.identity);
+        });
+        
+      } catch (err) {
+        console.error('[LiveKit] Connection failed:', err);
+        showStatus('Connection failed. Retrying...');
+        setTimeout(connect, 3000);
+      }
+    }
+    
+    function subscribeToTracks(participant) {
+      participant.trackPublications.forEach((pub) => {
+        if (pub.track && pub.track.kind === 'video') {
+          attachVideo(pub.track, participant.identity);
+        }
+      });
+    }
+    
+    function attachVideo(track, identity) {
+      const video = track.attach();
+      video.id = 'video-' + identity;
+      video.autoplay = true;
+      const grid = document.getElementById('video-grid');
+      grid.innerHTML = '';
+      grid.appendChild(video);
+    }
+    
+    // ── PRODUCT METADATA HANDLER ──
+    function handleProductMetadata(metadata) {
+      try {
+        const data = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
+        const product = data.verelo_product;
+        
+        if (!product) {
+          document.getElementById('product-overlay').style.display = 'none';
+          currentProduct = null;
+          return;
+        }
+        
+        currentProduct = product;
+        document.getElementById('p-name').textContent = product.name;
+        document.getElementById('p-meta').textContent = [
+          product.category,
+          product.size,
+          product.color,
+          product.material
+        ].filter(Boolean).join(' • ') || 'Factory Direct';
+        document.getElementById('p-price').textContent = 
+          (product.currency || 'USD') + ' ' + parseFloat(product.price).toFixed(2);
+        document.getElementById('p-image').src = product.image || 
+          'https://via.placeholder.com/90x90/e8e6e1/999?text=Verelo';
+        
+        document.getElementById('product-overlay').style.display = 'block';
+        
+      } catch (e) {
+        console.warn('Invalid metadata:', e);
+      }
+    }
+    
+    // ── BOX LOGIC ──
+    function addToBox() {
+      if (!currentProduct) return;
+      
+      // Single box: check if same product exists
+      const existing = box.find(i => i.id === currentProduct.id);
+      if (existing) {
+        showStatus('This item is already in your box');
+        return;
+      }
+      
+      box.push({
+        id: currentProduct.id,
+        name: currentProduct.name,
+        price: currentProduct.price,
+        currency: currentProduct.currency,
+        image: currentProduct.image,
+        customization: {}
+      });
+      
+      saveBox();
+      updateBoxUI();
+      showStatus('Added to box!');
+      
+      // Animate box toggle
+      const btn = document.getElementById('box-toggle');
+      btn.style.transform = 'scale(1.2)';
+      setTimeout(() => btn.style.transform = '', 200);
+    }
+    
+    function saveBox() {
+      localStorage.setItem('verelo_box', JSON.stringify(box));
+    }
+    
+    function updateBoxUI() {
+      const container = document.getElementById('box-items');
+      const count = document.getElementById('box-count');
+      const footer = document.getElementById('box-footer');
+      const totalEl = document.getElementById('box-total');
+      
+      count.textContent = box.length;
+      count.style.display = box.length > 0 ? 'flex' : 'none';
+      
+      if (box.length === 0) {
+        container.innerHTML = '<div class="box-empty">Your box is empty.<br>Watch the stream and add items.</div>';
+        footer.style.display = 'none';
+        return;
+      }
+      
+      let total = 0;
+      container.innerHTML = box.map((item, idx) => {
+        total += parseFloat(item.price || 0);
+        return `
+          <div class="box-item">
+            <div style="display:flex; gap:12px; align-items:center;">
+              <img src="${item.image || 'https://via.placeholder.com/50'}" style="width:50px;height:50px;border-radius:10px;object-fit:cover;">
+              <div style="flex:1;">
+                <div class="box-item-name">${item.name}</div>
+                <div class="box-item-price">${item.currency || 'USD'} ${parseFloat(item.price).toFixed(2)}</div>
+              </div>
+              <button onclick="removeFromBox(${idx})" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);">×</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      totalEl.textContent = (box[0]?.currency || 'USD') + ' ' + total.toFixed(2);
+      footer.style.display = 'block';
+    }
+    
+    function removeFromBox(idx) {
+      box.splice(idx, 1);
+      saveBox();
+      updateBoxUI();
+    }
+    
+    function openBox() {
+      document.getElementById('box-drawer').classList.add('open');
+      updateBoxUI();
+    }
+    
+    function closeBox() {
+      document.getElementById('box-drawer').classList.remove('open');
+    }
+    
+    // ── CHECKOUT ──
+    async function confirmBox() {
+      if (box.length === 0) return;
+      
+      const total = box.reduce((s, i) => s + parseFloat(i.price || 0), 0);
+      
+      try {
+        const res = await fetch('/api/order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: box,
+            total: total,
+            room: ROOM_NAME
+          })
+        });
+        
+        const data = await res.json();
+        if (data.ok) {
+          document.getElementById('modal-order-id').textContent = data.orderId;
+          document.getElementById('confirm-modal').classList.add('show');
+          box = [];
+          saveBox();
+          updateBoxUI();
+        }
+      } catch (e) {
+        showStatus('Checkout failed. Try again.');
+      }
+    }
+    
+    function closeModal() {
+      document.getElementById('confirm-modal').classList.remove('show');
+    }
+    
+    function openWhatsApp() {
+      const orderId = document.getElementById('modal-order-id').textContent;
+      const text = encodeURIComponent(`Hi Verelo! I just confirmed order ${orderId}. Ready to finalize.`);
+      window.open(`https://wa.me/?text=${text}`, '_blank');
+    }
+    
+    // ── UI HELPERS ──
+    function showStatus(text, duration = 3000) {
+      const el = document.getElementById('conn-status');
+      el.textContent = text;
+      el.classList.add('show');
+      if (duration) setTimeout(() => el.classList.remove('show'), duration);
+    }
+    
+    // ── INIT ──
+    updateBoxUI();
+    connect();
+  </script>
+</body>
+</html>

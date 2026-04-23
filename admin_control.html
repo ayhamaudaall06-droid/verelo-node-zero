@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verelo Admin — Factory Control</title>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f5f3ef;
+      --card: #ffffff;
+      --accent: #c45c3e;
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --border: rgba(0,0,0,0.08);
+      --success: #2d8a4e;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .header {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .logo { font-family: 'Caveat', cursive; font-size: 26px; font-weight: 600; }
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #ccc;
+    }
+    .status-dot.live { background: var(--success); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px;
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      gap: 32px;
+    }
+    
+    @media (max-width: 900px) {
+      .container { grid-template-columns: 1fr; }
+    }
+    
+    .panel {
+      background: var(--card);
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      padding: 24px;
+    }
+    .panel-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    /* Product Grid */
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+    }
+    .product-card {
+      border: 2px solid transparent;
+      border-radius: 16px;
+      padding: 16px;
+      background: #fafaf9;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+    .product-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .product-card.active {
+      border-color: var(--accent);
+      background: rgba(196,92,62,0.04);
+    }
+    .product-card .badge {
+      position: absolute;
+      top: 12px; right: 12px;
+      background: var(--accent);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 12px;
+      display: none;
+    }
+    .product-card.active .badge { display: block; }
+    .product-img {
+      width: 100%;
+      height: 140px;
+      border-radius: 12px;
+      object-fit: cover;
+      background: #e8e6e1;
+      margin-bottom: 12px;
+    }
+    .product-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+    .product-price { color: var(--accent); font-weight: 700; font-size: 15px; }
+    .product-stock { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    
+    /* Live Control */
+    .control-group { margin-bottom: 20px; }
+    .control-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 14px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+    .btn-primary:hover:not(:disabled) { background: #a84d32; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-danger {
+      background: #c0392b;
+      color: white;
+    }
+    .btn-danger:hover { background: #a93226; }
+    
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { color: var(--muted); }
+    
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--text);
+      color: white;
+      padding: 14px 28px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 100;
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.16,1,0.3,1);
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="logo">Verelo Factory Control</div>
+    <div class="status">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">Offline</span>
+    </div>
+  </div>
+
+  <div class="container">
+    <div>
+      <div class="panel">
+        <div class="panel-title">📦 Select Active Product</div>
+        <div class="product-grid" id="product-grid">
+          <div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--muted);">
+            Loading products...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <div class="panel-title">🔴 Stream Control</div>
+        
+        <div class="control-group">
+          <div class="control-label">Selected Product</div>
+          <div id="selected-product" style="font-weight:600; font-size:15px; padding:12px; background:#fafaf9; border-radius:12px;">
+            None selected
+          </div>
+        </div>
+        
+        <div class="control-group">
+          <div class="control-label">Room</div>
+          <div class="info-row">
+            <span class="info-label">Name</span>
+            <span>verelo-factory</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Platform</span>
+            <span>LiveKit</span>
+          </div>
+        </div>
+        
+        <button class="btn btn-primary" id="go-live-btn" onclick="goLive()" disabled>
+          Go Live with Product
+        </button>
+        <button class="btn btn-danger" style="margin-top:10px; display:none;" id="end-btn" onclick="endStream()">
+          End Stream
+        </button>
+      </div>
+      
+      <div class="panel" style="margin-top:20px;">
+        <div class="panel-title">📊 Quick Stats</div>
+        <div class="info-row">
+          <span class="info-label">Products</span>
+          <span id="stat-products">0</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Active</span>
+          <span id="stat-active">0</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Viewers</span>
+          <span id="stat-viewers">0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Message</div>
+
+  <script>
+    const ROOM_NAME = 'verelo-factory';
+    let products = [];
+    let selectedProduct = null;
+    let isLive = false;
+
+    async function loadProducts() {
+      try {
+        const res = await fetch('/api/products?is_active=1');
+        const data = await res.json();
+        products = data.products || [];
+        renderProducts();
+        document.getElementById('stat-products').textContent = products.length;
+        document.getElementById('stat-active').textContent = 
+          products.filter(p => p.is_active).length;
+      } catch (e) {
+        showToast('Failed to load products');
+      }
+    }
+
+    function renderProducts() {
+      const grid = document.getElementById('product-grid');
+      if (products.length === 0) {
+        grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--muted);">No active products</div>';
+        return;
+      }
+      
+      grid.innerHTML = products.map(p => `
+        <div class="product-card ${selectedProduct?.id === p.id ? 'active' : ''}" 
+             onclick="selectProduct('${p.id}')">
+          <div class="badge">LIVE</div>
+          <img class="product-img" src="${p.primary_image || 'https://via.placeholder.com/220x140/e8e6e1/999?text=No+Image'}" 
+               onerror="this.src='https://via.placeholder.com/220x140/e8e6e1/999?text=No+Image'">
+          <div class="product-name">${p.name}</div>
+          <div class="product-price">${p.currency || 'USD'} ${parseFloat(p.price).toFixed(2)}</div>
+          <div class="product-stock">${p.inventory_count || 0} in stock • ${p.box_type || 'standard'}</div>
+        </div>
+      `).join('');
+    }
+
+    function selectProduct(id) {
+      selectedProduct = products.find(p => p.id === id);
+      renderProducts();
+      
+      document.getElementById('selected-product').textContent = selectedProduct.name;
+      document.getElementById('go-live-btn').disabled = false;
+    }
+
+    async function goLive() {
+      if (!selectedProduct) return;
+      
+      const btn = document.getElementById('go-live-btn');
+      btn.disabled = true;
+      btn.textContent = 'Syncing...';
+      
+      try {
+        const res = await fetch('/api/livekit/room-metadata', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            room: ROOM_NAME,
+            productId: selectedProduct.id
+          })
+        });
+        
+        const data = await res.json();
+        if (data.ok) {
+          isLive = true;
+          updateLiveUI(true);
+          showToast(`Now live: ${selectedProduct.name}`);
+        } else {
+          throw new Error(data.error || 'Sync failed');
+        }
+      } catch (e) {
+        showToast('Error: ' + e.message);
+        btn.disabled = false;
+        btn.textContent = 'Go Live with Product';
+      }
+    }
+
+    async function endStream() {
+      try {
+        await fetch('/api/livekit/room-metadata', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ room: ROOM_NAME, action: 'clear' })
+        });
+      } catch (e) {}
+      
+      isLive = false;
+      selectedProduct = null;
+      updateLiveUI(false);
+      renderProducts();
+      document.getElementById('selected-product').textContent = 'None selected';
+      showToast('Stream ended');
+    }
+
+    function updateLiveUI(live) {
+      const dot = document.getElementById('status-dot');
+      const text = document.getElementById('status-text');
+      const goBtn = document.getElementById('go-live-btn');
+      const endBtn = document.getElementById('end-btn');
+      
+      if (live) {
+        dot.classList.add('live');
+        text.textContent = 'LIVE';
+        goBtn.style.display = 'none';
+        endBtn.style.display = 'block';
+      } else {
+        dot.classList.remove('live');
+        text.textContent = 'Offline';
+        goBtn.style.display = 'block';
+        goBtn.textContent = 'Go Live with Product';
+        endBtn.style.display = 'none';
+      }
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    // Poll viewer count (optional)
+    setInterval(async () => {
+      if (!isLive) return;
+      try {
+        // This would need a real endpoint; stub for now
+        document.getElementById('stat-viewers').textContent = Math.floor(Math.random() * 50);
+      } catch (e) {}
+    }, 5000);
+
+    loadProducts();
+  </script>
+</body>
+</html>

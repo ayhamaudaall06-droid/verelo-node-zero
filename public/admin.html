@@ -1,923 +1,147 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta http-equiv="Content-Style-Type" content="text/css">
-  <title></title>
-  <meta name="Generator" content="Cocoa HTML Writer">
-  <meta name="CocoaVersion" content="2575.7">
-  <style type="text/css">
-    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
-    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verelo Admin — Factory Control</title>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg: #f5f3ef; --card: #ffffff; --accent: #c45c3e; --text: #1a1a1a; --muted: #6b6b6b; --border: rgba(0,0,0,0.08); --success: #2d8a4e; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    .header { background: var(--card); border-bottom: 1px solid var(--border); padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
+    .logo { font-family: 'Caveat', cursive; font-size: 26px; font-weight: 600; }
+    .status { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--muted); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
+    .status-dot.live { background: var(--success); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .container { max-width: 1200px; margin: 0 auto; padding: 32px; display: grid; grid-template-columns: 1fr 360px; gap: 32px; }
+    @media (max-width: 900px) { .container { grid-template-columns: 1fr; } }
+    .panel { background: var(--card); border-radius: 20px; border: 1px solid var(--border); padding: 24px; }
+    .panel-title { font-size: 16px; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+    .product-card { border: 2px solid transparent; border-radius: 16px; padding: 16px; background: #fafaf9; cursor: pointer; transition: all 0.2s; position: relative; }
+    .product-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .product-card.active { border-color: var(--accent); background: rgba(196,92,62,0.04); }
+    .product-card .badge { position: absolute; top: 12px; right: 12px; background: var(--accent); color: white; font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; display: none; }
+    .product-card.active .badge { display: block; }
+    .product-img { width: 100%; height: 140px; border-radius: 12px; object-fit: cover; background: #e8e6e1; margin-bottom: 12px; }
+    .product-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+    .product-price { color: var(--accent); font-weight: 700; font-size: 15px; }
+    .product-stock { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .control-group { margin-bottom: 20px; }
+    .control-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 8px; }
+    .btn { width: 100%; padding: 14px; border-radius: 14px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover:not(:disabled) { background: #a84d32; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-danger { background: #c0392b; color: white; }
+    .btn-danger:hover { background: #a93226; }
+    .info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { color: var(--muted); }
+    .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--text); color: white; padding: 14px 28px; border-radius: 12px; font-size: 14px; font-weight: 500; z-index: 100; opacity: 0; transition: all 0.4s cubic-bezier(0.16,1,0.3,1); }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
   </style>
 </head>
 <body>
-<p class="p1">&lt;!DOCTYPE html&gt;</p>
-<p class="p1">&lt;html lang="en"&gt;</p>
-<p class="p1">&lt;head&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;meta charset="UTF-8"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;title&gt;Verelo Command | Node Zero Kanban&lt;/title&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;style&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>:root {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>--bg-warm: #F8F6F1;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>--glass-white: rgba(255, 255, 255, 0.72);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>--glass-border: rgba(255, 255, 255, 0.4);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>--shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.06);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>--shadow-lift: 0 12px 48px rgba(0, 0, 0, 0.12);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>--font-brand: 'Caveat', cursive;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>--font-ui: 'Inter', sans-serif;</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>/* Kanban Tag Colors */</p>
-<p class="p1"><span class="Apple-converted-space">            </span>--tag-blue: #3B82F6;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>--tag-purple: #8B5CF6;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>--tag-green: #10B981;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>--tag-orange: #F59E0B;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>--tag-red: #EF4444;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>--tag-teal: #14B8A6;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>--tag-gray: #6B7280;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>--tag-gold: #F59E0B;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>--tag-black: #1F2937;</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>/* Column Colors */</p>
-<p class="p1"><span class="Apple-converted-space">            </span>--col-capture: #FEF3C7;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>--col-intent: #DBEAFE;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>--col-product: #E0E7FF;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>--col-config: #D1FAE5;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>--col-secure: #FCE7F3;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>--col-fulfill: #CFFAFE;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>* { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>body {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-family: var(--font-ui);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>background: var(--bg-warm);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>color: #1A1A1A;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>overflow: hidden;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>height: 100vh;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>display: flex;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>flex-direction: column;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>/* HEADER */</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.command-header {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>background: rgba(255, 255, 255, 0.8);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>backdrop-filter: blur(20px);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>border-bottom: 1px solid rgba(0,0,0,0.06);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>padding: 16px 24px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>display: flex;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>justify-content: space-between;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>align-items: center;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>flex-shrink: 0;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>z-index: 100;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.brand {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>display: flex;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>align-items: center;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>gap: 12px;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.brand-mark {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>width: 36px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>height: 36px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(0,0,0,0.6));</p>
-<p class="p1"><span class="Apple-converted-space">            </span>border-radius: 8px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>display: flex;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>align-items: center;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>justify-content: center;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>color: white;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-family: var(--font-brand);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-size: 1.5rem;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-weight: 700;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.brand-title {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-family: var(--font-brand);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-size: 1.75rem;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-weight: 700;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.brand-sub {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-size: 0.75rem;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>color: #666;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-weight: 500;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>letter-spacing: 0.05em;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>text-transform: uppercase;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>/* PINNED WIDGETS */</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.telemetry-bar {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>background: rgba(255, 255, 255, 0.6);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>backdrop-filter: blur(10px);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>border-bottom: 1px solid rgba(0,0,0,0.04);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>padding: 16px 24px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>display: flex;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>gap: 16px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>overflow-x: auto;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>flex-shrink: 0;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.telemetry-card {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>background: rgba(255, 255, 255, 0.9);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>border: 1px solid rgba(0,0,0,0.06);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>border-radius: 12px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>padding: 12px 16px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>min-width: 160px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>flex-shrink: 0;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>box-shadow: var(--shadow-soft);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>transition: transform 0.2s;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.telemetry-card:hover {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>transform: translateY(-2px);</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.telemetry-label {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-size: 0.625rem;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>color: #999;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>text-transform: uppercase;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>letter-spacing: 0.1em;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-weight: 600;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>margin-bottom: 4px;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.telemetry-value {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-family: var(--font-brand);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-size: 1.5rem;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-weight: 700;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>color: #1A1A1A;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.telemetry-status {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>display: inline-flex;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>align-items: center;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>gap: 4px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-size: 0.75rem;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>color: #10B981;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>margin-top: 2px;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.status-dot {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>width: 6px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>height: 6px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>border-radius: 50%;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>background: #10B981;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>animation: pulse 2s infinite;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.status-degraded { color: #F59E0B; }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.status-offline { color: #EF4444; }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.status-degraded .status-dot { background: #F59E0B; animation: none; }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.status-offline .status-dot { background: #EF4444; animation: none; }</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>@keyframes pulse {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>0%, 100% { opacity: 1; }</p>
-<p class="p1"><span class="Apple-converted-space">            </span>50% { opacity: 0.5; }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>/* KANBAN BOARD */</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.kanban-container {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>flex: 1;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>overflow-x: auto;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>overflow-y: hidden;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>padding: 24px;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.kanban-board {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>display: flex;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>gap: 16px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>height: 100%;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>min-width: max-content;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>/* COLUMNS */</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.kanban-column {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>width: 280px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>flex-shrink: 0;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>display: flex;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>flex-direction: column;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>background: rgba(255, 255, 255, 0.4);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>backdrop-filter: blur(10px);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>border-radius: 16px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>border: 1px solid rgba(0,0,0,0.06);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>overflow: hidden;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.column-header {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>padding: 16px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>border-bottom: 1px solid rgba(0,0,0,0.04);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>background: rgba(255, 255, 255, 0.6);</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.column-title {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-family: var(--font-brand);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-size: 1.25rem;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-weight: 700;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>display: flex;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>align-items: center;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>gap: 8px;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.column-wip {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-size: 0.625rem;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>color: #999;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>text-transform: uppercase;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>letter-spacing: 0.05em;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>margin-top: 2px;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.column-count {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>background: rgba(0,0,0,0.08);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>color: #666;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>padding: 2px 8px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>border-radius: 100px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-size: 0.75rem;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-weight: 600;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.column-limit-warning {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>background: #FEF3C7;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>color: #92400E;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>padding: 8px 12px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-size: 0.75rem;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>border-bottom: 1px solid rgba(0,0,0,0.04);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>display: none;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.column-limit-warning.visible {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>display: block;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>/* CARDS CONTAINER */</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.cards-container {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>flex: 1;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>overflow-y: auto;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>padding: 12px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>display: flex;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>flex-direction: column;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>gap: 10px;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.cards-container.drag-over {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>background: rgba(59, 130, 246, 0.1);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>border: 2px dashed var(--tag-blue);</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>/* KANBAN CARDS */</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.kanban-card {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>background: rgba(255, 255, 255, 0.95);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>border: 1px solid rgba(0,0,0,0.06);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>border-radius: 12px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>padding: 12px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>cursor: grab;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>box-shadow: 0 2px 8px rgba(0,0,0,0.04);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>transition: all 0.2s;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>position: relative;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.kanban-card:hover {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>transform: translateY(-2px);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>box-shadow: var(--shadow-lift);</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.kanban-card.dragging {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>opacity: 0.5;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>transform: rotate(2deg);</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.card-header {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>display: flex;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>justify-content: space-between;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>align-items: start;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>margin-bottom: 8px;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.card-title {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-family: var(--font-brand);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-size: 1.125rem;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-weight: 600;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>line-height: 1.2;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>flex: 1;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.card-priority {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-size: 0.625rem;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>padding: 2px 6px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>border-radius: 4px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-weight: 700;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>text-transform: uppercase;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.priority-high { background: #FEE2E2; color: #991B1B; }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.priority-medium { background: #FEF3C7; color: #92400E; }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.priority-low { background: #DBEAFE; color: #1E40AF; }</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.card-meta {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>display: flex;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>flex-wrap: wrap;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>gap: 4px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>margin-bottom: 8px;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.card-id {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-size: 0.625rem;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>color: #999;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-family: monospace;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.card-type {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-size: 0.625rem;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>background: rgba(0,0,0,0.06);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>padding: 2px 6px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>border-radius: 4px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>color: #666;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.card-state {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-size: 0.625rem;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>background: #E0E7FF;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>color: #3730A3;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>padding: 2px 6px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>border-radius: 4px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-weight: 600;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.card-tags {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>display: flex;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>flex-wrap: wrap;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>gap: 4px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>margin-bottom: 8px;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.tag {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-size: 0.625rem;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>padding: 2px 6px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>border-radius: 100px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-weight: 600;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>text-transform: uppercase;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>letter-spacing: 0.05em;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.tag-blue { background: rgba(59, 130, 246, 0.1); color: var(--tag-blue); }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.tag-purple { background: rgba(139, 92, 246, 0.1); color: var(--tag-purple); }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.tag-green { background: rgba(16, 185, 129, 0.1); color: var(--tag-green); }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.tag-orange { background: rgba(245, 158, 11, 0.1); color: var(--tag-orange); }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.tag-red { background: rgba(239, 68, 68, 0.1); color: var(--tag-red); }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.tag-teal { background: rgba(20, 184, 166, 0.1); color: var(--tag-teal); }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.tag-gray { background: rgba(107, 114, 128, 0.1); color: var(--tag-gray); }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.tag-gold { background: rgba(245, 158, 11, 0.15); color: #B45309; border: 1px solid rgba(245, 158, 11, 0.3); }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.tag-black { background: rgba(31, 41, 55, 0.1); color: var(--tag-black); }</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.card-footer {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>display: flex;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>justify-content: space-between;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>align-items: center;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-size: 0.75rem;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>color: #999;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.card-owner {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>display: flex;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>align-items: center;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>gap: 4px;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.avatar-mini {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>width: 20px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>height: 20px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>border-radius: 50%;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>display: flex;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>align-items: center;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>justify-content: center;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>color: white;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-size: 0.625rem;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-weight: 700;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.card-time {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-family: var(--font-brand);</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.card-risk {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>margin-top: 8px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>padding-top: 8px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>border-top: 1px solid rgba(0,0,0,0.04);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-size: 0.75rem;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>color: #EF4444;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-family: var(--font-brand);</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>/* QUICK ACTIONS */</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.quick-actions {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>position: fixed;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>bottom: 24px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>right: 24px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>display: flex;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>gap: 12px;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.fab {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>width: 56px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>height: 56px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>border-radius: 50%;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>border: none;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>background: #1A1A1A;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>color: white;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-family: var(--font-brand);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>font-size: 1.5rem;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>cursor: pointer;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>box-shadow: 0 8px 24px rgba(0,0,0,0.2);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>transition: transform 0.2s;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>.fab:hover {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>transform: scale(1.1);</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>/* RESPONSIVE */</p>
-<p class="p1"><span class="Apple-converted-space">        </span>@media (max-width: 768px) {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>.kanban-column {</p>
-<p class="p1"><span class="Apple-converted-space">                </span>width: 260px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>}</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>.telemetry-bar {</p>
-<p class="p1"><span class="Apple-converted-space">                </span>padding: 12px 16px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>}</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>.telemetry-card {</p>
-<p class="p1"><span class="Apple-converted-space">                </span>min-width: 140px;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>padding: 10px 12px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>}</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>/* SCROLLBARS */</p>
-<p class="p1"><span class="Apple-converted-space">        </span>::-webkit-scrollbar {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>width: 6px;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>height: 6px;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>::-webkit-scrollbar-track {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>background: transparent;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>::-webkit-scrollbar-thumb {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>background: rgba(0,0,0,0.1);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>border-radius: 3px;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>::-webkit-scrollbar-thumb:hover {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>background: rgba(0,0,0,0.2);</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/style&gt;</p>
-<p class="p1">&lt;/head&gt;</p>
-<p class="p1">&lt;body&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;!-- HEADER --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;header class="command-header"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="brand"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="brand-mark"&gt;V&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="brand-title"&gt;Command Center&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="brand-sub"&gt;Node Zero Kanban&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div style="display: flex; gap: 16px; align-items: center;"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div style="text-align: right;"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div style="font-family: var(--font-brand); font-size: 1.25rem; font-weight: 600;"&gt;Ayham&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div style="font-size: 0.75rem; color: #999;"&gt;Operator&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="avatar-mini" style="width: 36px; height: 36px; font-size: 1rem;"&gt;A&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/header&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;!-- TELEMETRY WIDGETS --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="telemetry-bar"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="telemetry-card"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="telemetry-label"&gt;Live Sessions&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="telemetry-value" id="live-sessions"&gt;0&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="telemetry-status"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;span class="status-dot"&gt;&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;span&gt;Active&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="telemetry-card"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="telemetry-label"&gt;AI Brain&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="telemetry-value" style="font-size: 1.25rem;"&gt;Qwen 7B&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="telemetry-status" id="ai-status"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;span class="status-dot"&gt;&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;span&gt;Connected&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="telemetry-card"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="telemetry-label"&gt;State Memory&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="telemetry-value" id="memory-cached"&gt;0&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="telemetry-status" id="memory-status"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;span class="status-dot"&gt;&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;span id="memory-text"&gt;Normal&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="telemetry-card"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="telemetry-label"&gt;Today's Orders&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="telemetry-value" id="today-orders"&gt;0&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="telemetry-status"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;span style="color: #999;"&gt;JOD 0&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="telemetry-card"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="telemetry-label"&gt;Stream Status&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="telemetry-value" style="font-size: 1.25rem;" id="stream-status"&gt;Offline&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="telemetry-status" id="stream-indicator"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;span class="status-dot" style="background: #9CA3AF; animation: none;"&gt;&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;span&gt;Standby&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="telemetry-card"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="telemetry-label"&gt;AI Conversations&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="telemetry-value" id="ai-conversations"&gt;0&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="telemetry-status"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;span style="color: #999;"&gt;Today&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;!-- KANBAN BOARD --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="kanban-container"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="kanban-board" id="board"&gt;</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;!-- COLUMN 1: Capture &amp; Enter (WIP: 8) --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="kanban-column" data-column="capture" data-wip="8" data-color="#FEF3C7"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="column-header" style="background: var(--col-capture);"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div class="column-title"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                        </span>Capture &amp; Enter</p>
-<p class="p1"><span class="Apple-converted-space">                        </span>&lt;span class="column-count" id="count-capture"&gt;0&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div class="column-wip"&gt;WIP Limit: 8&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="column-limit-warning" id="warning-capture"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>⚠️ WIP Limit Reached (8/8)</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="cards-container" id="col-capture" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;!-- Cards injected by JS --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;!-- COLUMN 2: Intent &amp; Route (WIP: 5) --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="kanban-column" data-column="intent" data-wip="5" data-color="#DBEAFE"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="column-header" style="background: var(--col-intent);"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div class="column-title"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                        </span>Intent &amp; Route</p>
-<p class="p1"><span class="Apple-converted-space">                        </span>&lt;span class="column-count" id="count-intent"&gt;0&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div class="column-wip"&gt;WIP Limit: 5&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="column-limit-warning" id="warning-intent"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>⚠️ WIP Limit Reached (5/5)</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="cards-container" id="col-intent" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;!-- COLUMN 3: Product &amp; Live Preview (WIP: 4) --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="kanban-column" data-column="product" data-wip="4" data-color="#E0E7FF"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="column-header" style="background: var(--col-product);"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div class="column-title"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                        </span>Product &amp; Preview</p>
-<p class="p1"><span class="Apple-converted-space">                        </span>&lt;span class="column-count" id="count-product"&gt;0&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div class="column-wip"&gt;WIP Limit: 4&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="column-limit-warning" id="warning-product"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>⚠️ WIP Limit Reached (4/4)</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="cards-container" id="col-product" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;!-- COLUMN 4: Configure &amp; Confirm (WIP: 3) --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="kanban-column" data-column="config" data-wip="3" data-color="#D1FAE5"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="column-header" style="background: var(--col-config);"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div class="column-title"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                        </span>Configure &amp; Confirm</p>
-<p class="p1"><span class="Apple-converted-space">                        </span>&lt;span class="column-count" id="count-config"&gt;0&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div class="column-wip"&gt;WIP Limit: 3&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="column-limit-warning" id="warning-config"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>⚠️ WIP Limit Reached (3/3)</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="cards-container" id="col-config" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;!-- COLUMN 5: Secure &amp; Submit (WIP: 3) --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="kanban-column" data-column="secure" data-wip="3" data-color="#FCE7F3"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="column-header" style="background: var(--col-secure);"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div class="column-title"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                        </span>Secure &amp; Submit</p>
-<p class="p1"><span class="Apple-converted-space">                        </span>&lt;span class="column-count" id="count-secure"&gt;0&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div class="column-wip"&gt;WIP Limit: 3&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="column-limit-warning" id="warning-secure"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>⚠️ WIP Limit Reached (3/3)</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="cards-container" id="col-secure" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;!-- COLUMN 6: Live Fulfillment (WIP: 5) --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="kanban-column" data-column="fulfill" data-wip="5" data-color="#CFFAFE"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="column-header" style="background: var(--col-fulfill);"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div class="column-title"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                        </span>Live Fulfillment</p>
-<p class="p1"><span class="Apple-converted-space">                        </span>&lt;span class="column-count" id="count-fulfill"&gt;0&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div class="column-wip"&gt;WIP Limit: 5&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="column-limit-warning" id="warning-fulfill"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>⚠️ WIP Limit: Reached (5/5)</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="cards-container" id="col-fulfill" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;!-- QUICK ACTIONS --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="quick-actions"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button class="fab" onclick="refreshData()" title="Refresh"&gt;↻&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button class="fab" onclick="createCard()" title="New Card" style="background: #10B981;"&gt;+&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;script&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>// Sample data representing live sessions from State Machine</p>
-<p class="p1"><span class="Apple-converted-space">        </span>let cards = [</p>
-<p class="p1"><span class="Apple-converted-space">            </span>{</p>
-<p class="p1"><span class="Apple-converted-space">                </span>id: 'wa_962791119654_001',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>title: 'Morning Coffee Box Inquiry',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>column: 'capture',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>type: 'Curated Box',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>state: 'ACQUIRED',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>priority: 'medium',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>tags: ['blue', 'purple'],</p>
-<p class="p1"><span class="Apple-converted-space">                </span>owner: 'A',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>time: '2m ago',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>sessionId: 'wa_962791119654_001',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>risk: null,</p>
-<p class="p1"><span class="Apple-converted-space">                </span>dependencies: [],</p>
-<p class="p1"><span class="Apple-converted-space">                </span>visibility: 'immediate'</p>
-<p class="p1"><span class="Apple-converted-space">            </span>},</p>
-<p class="p1"><span class="Apple-converted-space">            </span>{</p>
-<p class="p1"><span class="Apple-converted-space">                </span>id: 'wa_109221102244_002',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>title: 'Custom Dynamic Assembly',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>column: 'intent',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>type: 'Dynamic Assortment',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>state: 'QUALIFIED',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>priority: 'high',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>tags: ['blue', 'purple', 'gold'],</p>
-<p class="p1"><span class="Apple-converted-space">                </span>owner: 'AI',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>time: '5m ago',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>sessionId: 'wa_109221102244_002',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>risk: 'Waiting on stream confirmation',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>dependencies: ['stream-active'],</p>
-<p class="p1"><span class="Apple-converted-space">                </span>visibility: 'staged'</p>
-<p class="p1"><span class="Apple-converted-space">            </span>},</p>
-<p class="p1"><span class="Apple-converted-space">            </span>{</p>
-<p class="p1"><span class="Apple-converted-space">                </span>id: 'wa_962791119654_003',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>title: 'WAKE Box - Ethiopian + Grinder',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>column: 'config',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>type: 'Curated Box',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>state: 'CURATED_SELECTED',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>priority: 'high',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>tags: ['green', 'gold'],</p>
-<p class="p1"><span class="Apple-converted-space">                </span>owner: 'A',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>time: '12m ago',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>sessionId: 'wa_962791119654_003',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>risk: null,</p>
-<p class="p1"><span class="Apple-converted-space">                </span>dependencies: [],</p>
-<p class="p1"><span class="Apple-converted-space">                </span>visibility: 'immediate'</p>
-<p class="p1"><span class="Apple-converted-space">            </span>}</p>
-<p class="p1"><span class="Apple-converted-space">        </span>];</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>// Render all cards</p>
-<p class="p1"><span class="Apple-converted-space">        </span>function renderCards() {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>// Clear all columns</p>
-<p class="p1"><span class="Apple-converted-space">            </span>document.querySelectorAll('.cards-container').forEach(col =&gt; col.innerHTML = '');</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>// Reset counts</p>
-<p class="p1"><span class="Apple-converted-space">            </span>const counts = { capture: 0, intent: 0, product: 0, config: 0, secure: 0, fulfill: 0 };</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>cards.forEach(card =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">                </span>const cardEl = createCardElement(card);</p>
-<p class="p1"><span class="Apple-converted-space">                </span>document.getElementById(`col-${card.column}`).appendChild(cardEl);</p>
-<p class="p1"><span class="Apple-converted-space">                </span>counts[card.column]++;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>});</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>// Update counts and WIP warnings</p>
-<p class="p1"><span class="Apple-converted-space">            </span>Object.keys(counts).forEach(col =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">                </span>const count = counts[col];</p>
-<p class="p1"><span class="Apple-converted-space">                </span>const limit = parseInt(document.querySelector(`[data-column="${col}"]`).dataset.wip);</p>
-<p class="p1"><span class="Apple-converted-space">                </span>document.getElementById(`count-${col}`).textContent = count;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>document.getElementById(`warning-${col}`).classList.toggle('visible', count &gt;= limit);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>});</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>updateTelemetry();</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>function createCardElement(card) {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>const div = document.createElement('div');</p>
-<p class="p1"><span class="Apple-converted-space">            </span>div.className = 'kanban-card';</p>
-<p class="p1"><span class="Apple-converted-space">            </span>div.draggable = true;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>div.dataset.cardId = card.id;</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>const priorityClass = `priority-${card.priority}`;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>const riskHtml = card.risk ? `&lt;div class="card-risk"&gt;⚠️ ${card.risk}&lt;/div&gt;` : '';</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>div.innerHTML = `</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="card-header"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div class="card-title"&gt;${card.title}&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div class="card-priority ${priorityClass}"&gt;${card.priority}&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="card-meta"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;span class="card-id"&gt;${card.sessionId.slice(-12)}&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;span class="card-type"&gt;${card.type}&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;span class="card-state"&gt;${card.state}&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="card-tags"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>${card.tags.map(tag =&gt; `&lt;span class="tag tag-${tag}"&gt;${tag}&lt;/span&gt;`).join('')}</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="card-footer"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div class="card-owner"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                        </span>&lt;div class="avatar-mini"&gt;${card.owner}&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                        </span>&lt;span&gt;${card.time}&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;span&gt;${card.visibility === 'staged' ? '🔒 Staged' : '👁 Live'}&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>${riskHtml}</p>
-<p class="p1"><span class="Apple-converted-space">            </span>`;</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>div.ondragstart = (e) =&gt; drag(e);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>div.ondragend = (e) =&gt; dragEnd(e);</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>return div;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>// Drag and Drop</p>
-<p class="p1"><span class="Apple-converted-space">        </span>let draggedCard = null;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>function drag(e) {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>draggedCard = cards.find(c =&gt; c.id === e.target.dataset.cardId);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>e.target.classList.add('dragging');</p>
-<p class="p1"><span class="Apple-converted-space">            </span>e.dataTransfer.effectAllowed = 'move';</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>function dragEnd(e) {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>e.target.classList.remove('dragging');</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>function allowDrop(e) {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>e.preventDefault();</p>
-<p class="p1"><span class="Apple-converted-space">            </span>e.currentTarget.classList.add('drag-over');</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>function dragLeave(e) {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>e.currentTarget.classList.remove('drag-over');</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>function drop(e) {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>e.preventDefault();</p>
-<p class="p1"><span class="Apple-converted-space">            </span>e.currentTarget.classList.remove('drag-over');</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>const newColumn = e.currentTarget.id.replace('col-', '');</p>
-<p class="p1"><span class="Apple-converted-space">            </span>const columnEl = document.querySelector(`[data-column="${newColumn}"]`);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>const wipLimit = parseInt(columnEl.dataset.wip);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>const currentCount = parseInt(document.getElementById(`count-${newColumn}`).textContent);</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>// Check WIP limit</p>
-<p class="p1"><span class="Apple-converted-space">            </span>if (currentCount &gt;= wipLimit &amp;&amp; draggedCard.column !== newColumn) {</p>
-<p class="p1"><span class="Apple-converted-space">                </span>alert(`⚠️ WIP Limit reached for ${newColumn} (${wipLimit}). Complete existing work first.`);</p>
-<p class="p1"><span class="Apple-converted-space">                </span>return;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>}</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>// Move logic based on your rules</p>
-<p class="p1"><span class="Apple-converted-space">            </span>const allowedMoves = {</p>
-<p class="p1"><span class="Apple-converted-space">                </span>'capture': ['intent'],</p>
-<p class="p1"><span class="Apple-converted-space">                </span>'intent': ['capture', 'product'],</p>
-<p class="p1"><span class="Apple-converted-space">                </span>'product': ['intent', 'config'],</p>
-<p class="p1"><span class="Apple-converted-space">                </span>'config': ['product', 'secure'],</p>
-<p class="p1"><span class="Apple-converted-space">                </span>'secure': ['config', 'fulfill'],</p>
-<p class="p1"><span class="Apple-converted-space">                </span>'fulfill': ['secure']</p>
-<p class="p1"><span class="Apple-converted-space">            </span>};</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>if (!allowedMoves[draggedCard.column].includes(newColumn)) {</p>
-<p class="p1"><span class="Apple-converted-space">                </span>// For demo, we'll allow it with warning. In production, enforce strictly.</p>
-<p class="p1"><span class="Apple-converted-space">                </span>console.warn(`Non-standard move: ${draggedCard.column} → ${newColumn}`);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>}</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>// Update card</p>
-<p class="p1"><span class="Apple-converted-space">            </span>draggedCard.column = newColumn;</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>// Update state based on column</p>
-<p class="p1"><span class="Apple-converted-space">            </span>const stateMap = {</p>
-<p class="p1"><span class="Apple-converted-space">                </span>'capture': 'ACQUIRED',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>'intent': 'QUALIFIED',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>'product': 'DYNAMIC_ASSEMBLING',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>'config': 'CURATED_SELECTED',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>'secure': 'VALIDATED',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>'fulfill': 'COMMITTED'</p>
-<p class="p1"><span class="Apple-converted-space">            </span>};</p>
-<p class="p1"><span class="Apple-converted-space">            </span>draggedCard.state = stateMap[newColumn] || draggedCard.state;</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>renderCards();</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>// In real implementation, this would trigger State Machine transition</p>
-<p class="p1"><span class="Apple-converted-space">            </span>console.log(`[KANBAN] Moved ${draggedCard.id} to ${newColumn} → State: ${draggedCard.state}`);</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>// Telemetry updates</p>
-<p class="p1"><span class="Apple-converted-space">        </span>function updateTelemetry() {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>const activeSessions = cards.length;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>const committed = cards.filter(c =&gt; c.column === 'fulfill').length;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>const inProgress = cards.filter(c =&gt; ['intent', 'product', 'config', 'secure'].includes(c.column)).length;</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>document.getElementById('live-sessions').textContent = activeSessions;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>document.getElementById('today-orders').textContent = committed;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>document.getElementById('ai-conversations').textContent = activeSessions; // Simplified</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>// Simulate State Machine memory (would connect to actual StateMachine in production)</p>
-<p class="p1"><span class="Apple-converted-space">            </span>const cached = Math.min(activeSessions * 3, 100); // Simulated</p>
-<p class="p1"><span class="Apple-converted-space">            </span>document.getElementById('memory-cached').textContent = cached;</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>if (cached &gt; 80) {</p>
-<p class="p1"><span class="Apple-converted-space">                </span>document.getElementById('memory-status').className = 'telemetry-status status-degraded';</p>
-<p class="p1"><span class="Apple-converted-space">                </span>document.getElementById('memory-text').textContent = 'High';</p>
-<p class="p1"><span class="Apple-converted-space">            </span>} else if (cached &gt; 95) {</p>
-<p class="p1"><span class="Apple-converted-space">                </span>document.getElementById('memory-status').className = 'telemetry-status status-offline';</p>
-<p class="p1"><span class="Apple-converted-space">                </span>document.getElementById('memory-text').textContent = 'Critical';</p>
-<p class="p1"><span class="Apple-converted-space">            </span>}</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>function refreshData() {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>// In production, this would fetch from SQLite/State Machine</p>
-<p class="p1"><span class="Apple-converted-space">            </span>console.log('[KANBAN] Refreshing from Node Zero...');</p>
-<p class="p1"><span class="Apple-converted-space">            </span>renderCards();</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>function createCard() {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>const id = `manual_${Date.now()}`;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>const newCard = {</p>
-<p class="p1"><span class="Apple-converted-space">                </span>id: id,</p>
-<p class="p1"><span class="Apple-converted-space">                </span>title: 'New Customer Inquiry',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>column: 'capture',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>type: 'Support',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>state: 'ACQUIRED',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>priority: 'medium',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>tags: ['blue'],</p>
-<p class="p1"><span class="Apple-converted-space">                </span>owner: 'A',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>time: 'now',</p>
-<p class="p1"><span class="Apple-converted-space">                </span>sessionId: id,</p>
-<p class="p1"><span class="Apple-converted-space">                </span>risk: null,</p>
-<p class="p1"><span class="Apple-converted-space">                </span>dependencies: [],</p>
-<p class="p1"><span class="Apple-converted-space">                </span>visibility: 'immediate'</p>
-<p class="p1"><span class="Apple-converted-space">            </span>};</p>
-<p class="p1"><span class="Apple-converted-space">            </span>cards.push(newCard);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>renderCards();</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>// Simulate live updates from WhatsApp</p>
-<p class="p1"><span class="Apple-converted-space">        </span>setInterval(() =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>// In production, this polls the database or uses WebSocket</p>
-<p class="p1"><span class="Apple-converted-space">            </span>// For demo, we just refresh the timestamp display</p>
-<p class="p1"><span class="Apple-converted-space">            </span>document.querySelectorAll('.card-time').forEach((el, i) =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">                </span>// Update relative times</p>
-<p class="p1"><span class="Apple-converted-space">            </span>});</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}, 30000);</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>// Initial render</p>
-<p class="p1"><span class="Apple-converted-space">        </span>renderCards();</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>// Connect to actual backend (when ready)</p>
-<p class="p1"><span class="Apple-converted-space">        </span>async function connectToNodeZero() {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>try {</p>
-<p class="p1"><span class="Apple-converted-space">                </span>// Fetch real session data from State Machine</p>
-<p class="p1"><span class="Apple-converted-space">                </span>// const response = await fetch('/api/sessions');</p>
-<p class="p1"><span class="Apple-converted-space">                </span>// const sessions = await response.json();</p>
-<p class="p1"><span class="Apple-converted-space">                </span>// Convert sessions to cards</p>
-<p class="p1"><span class="Apple-converted-space">                </span>console.log('[KANBAN] Connected to Node Zero');</p>
-<p class="p1"><span class="Apple-converted-space">            </span>} catch (err) {</p>
-<p class="p1"><span class="Apple-converted-space">                </span>console.error('[KANBAN] Node Zero connection failed:', err);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>}</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>// Auto-connect on load</p>
-<p class="p1"><span class="Apple-converted-space">        </span>connectToNodeZero();</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/script&gt;</p>
-<p class="p1">&lt;/body&gt;</p>
-<p class="p1">&lt;/html&gt;</p>
+  <div class="header">
+    <div class="logo">Verelo Factory Control</div>
+    <div class="status">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">Offline</span>
+    </div>
+  </div>
+  <div class="container">
+    <div>
+      <div class="panel">
+        <div class="panel-title">📦 Select Active Product</div>
+        <div class="product-grid" id="product-grid">
+          <div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--muted);">Loading products...</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <div class="panel-title">🔴 Stream Control</div>
+        <div class="control-group">
+          <div class="control-label">Selected Product</div>
+          <div id="selected-product" style="font-weight:600; font-size:15px; padding:12px; background:#fafaf9; border-radius:12px;">None selected</div>
+        </div>
+        <div class="control-group">
+          <div class="control-label">Room</div>
+          <div class="info-row"><span class="info-label">Name</span><span>verelo-factory</span></div>
+          <div class="info-row"><span class="info-label">Platform</span><span>LiveKit</span></div>
+        </div>
+        <button class="btn btn-primary" id="go-live-btn" onclick="goLive()" disabled>Go Live with Product</button>
+        <button class="btn btn-danger" style="margin-top:10px; display:none;" id="end-btn" onclick="endStream()">End Stream</button>
+      </div>
+      <div class="panel" style="margin-top:20px;">
+        <div class="panel-title">📊 Quick Stats</div>
+        <div class="info-row"><span class="info-label">Products</span><span id="stat-products">0</span></div>
+        <div class="info-row"><span class="info-label">Active</span><span id="stat-active">0</span></div>
+        <div class="info-row"><span class="info-label">Viewers</span><span id="stat-viewers">0</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast">Message</div>
+  <script>
+    const ROOM_NAME = 'verelo-factory';
+    let products = [], selectedProduct = null, isLive = false;
+    async function loadProducts() {
+      try {
+        const res = await fetch('/api/products?is_active=1');
+        const data = await res.json();
+        products = data.products || [];
+        renderProducts();
+        document.getElementById('stat-products').textContent = products.length;
+        document.getElementById('stat-active').textContent = products.filter(p => p.is_active).length;
+      } catch (e) { showToast('Failed to load products'); }
+    }
+    function renderProducts() {
+      const grid = document.getElementById('product-grid');
+      if (products.length === 0) { grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--muted);">No active products</div>'; return; }
+      grid.innerHTML = products.map(p => `
+        <div class="product-card ${selectedProduct?.id === p.id ? 'active' : ''}" onclick="selectProduct('${p.id}')">
+          <div class="badge">LIVE</div>
+          <img class="product-img" src="${p.primary_image || 'https://via.placeholder.com/220x140/e8e6e1/999?text=No+Image'}" onerror="this.src='https://via.placeholder.com/220x140/e8e6e1/999?text=No+Image'">
+          <div class="product-name">${p.name}</div>
+          <div class="product-price">${p.currency || 'USD'} ${parseFloat(p.price).toFixed(2)}</div>
+          <div class="product-stock">${p.inventory_count || 0} in stock • ${p.box_type || 'standard'}</div>
+        </div>`).join('');
+    }
+    function selectProduct(id) {
+      selectedProduct = products.find(p => p.id === id);
+      renderProducts();
+      document.getElementById('selected-product').textContent = selectedProduct.name;
+      document.getElementById('go-live-btn').disabled = false;
+    }
+    async function goLive() {
+      if (!selectedProduct) return;
+      const btn = document.getElementById('go-live-btn');
+      btn.disabled = true; btn.textContent = 'Syncing...';
+      try {
+        const res = await fetch('/api/livekit/room-metadata', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ room: ROOM_NAME, productId: selectedProduct.id })
+        });
+        const data = await res.json();
+        if (data.ok) { isLive = true; updateLiveUI(true); showToast(`Now live: ${selectedProduct.name}`); }
+        else throw new Error(data.error || 'Sync failed');
+      } catch (e) { showToast('Error: ' + e.message); btn.disabled = false; btn.textContent = 'Go Live with Product'; }
+    }
+    async function endStream() {
+      try { await fetch('/api/livekit/room-metadata', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ room: ROOM_NAME, action: 'clear' }) }); } catch (e) {}
+      isLive = false; selectedProduct = null; updateLiveUI(false); renderProducts(); document.getElementById('selected-product').textContent = 'None selected'; showToast('Stream ended');
+    }
+    function updateLiveUI(live) {
+      const dot = document.getElementById('status-dot'), text = document.getElementById('status-text'), goBtn = document.getElementById('go-live-btn'), endBtn = document.getElementById('end-btn');
+      if (live) { dot.classList.add('live'); text.textContent = 'LIVE'; goBtn.style.display = 'none'; endBtn.style.display = 'block'; }
+      else { dot.classList.remove('live'); text.textContent = 'Offline'; goBtn.style.display = 'block'; goBtn.textContent = 'Go Live with Product'; endBtn.style.display = 'none'; }
+    }
+    function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
+    setInterval(async () => { if (!isLive) return; try { document.getElementById('stat-viewers').textContent = Math.floor(Math.random() * 50); } catch (e) {} }, 5000);
+    loadProducts();
+  </script>
 </body>
 </html>

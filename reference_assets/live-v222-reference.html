@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verelo Portal - Live Window</title>
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client@1.15.0/dist/livekit-client.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0f;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            padding: 16px 24px;
+            background: rgba(0, 0, 0, 0.5);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #666;
+            transition: all 0.3s ease;
+        }
+
+        .status-indicator.connected {
+            background: #00ff88;
+            box-shadow: 0 0 10px #00ff88;
+        }
+
+        .status-indicator.connecting {
+            background: #ffaa00;
+            animation: blink 1s infinite;
+        }
+
+        .status-indicator.disconnected {
+            background: #ff4444;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            gap: 20px;
+        }
+
+        .video-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+            min-height: 400px;
+        }
+
+        .video-container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            aspect-ratio: 16/9;
+        }
+
+        .video-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .video-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .participant-label {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+        }
+
+        .btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            color: #000;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff4444, #cc0000);
+            color: #fff;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(255, 68, 68, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .voice-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+        }
+
+        .voice-label {
+            font-size: 14px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .voice-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+            color: #fff;
+            font-size: 28px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .voice-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .voice-btn.recording {
+            background: linear-gradient(135deg, #ff4444, #cc0000);
+            animation: recordingPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes recordingPulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.7);
+            }
+            50% {
+                box-shadow: 0 0 0 20px rgba(255, 68, 68, 0);
+            }
+        }
+
+        /* CSS-Only Pulsing Animation Bars */
+        .pulse-container {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            height: 50px;
+            padding: 10px 24px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 12px;
+            margin-top: 12px;
+        }
+
+        .pulse-container.active {
+            display: flex;
+        }
+
+        .pulse-bar {
+            width: 6px;
+            height: 20px;
+            background: linear-gradient(180deg, #00d4ff 0%, #0099cc 100%);
+            border-radius: 3px;
+            animation: pulse 1.2s ease-in-out infinite;
+        }
+
+        .pulse-bar:nth-child(1) { animation-delay: 0s; }
+        .pulse-bar:nth-child(2) { animation-delay: 0.15s; }
+        .pulse-bar:nth-child(3) { animation-delay: 0.3s; }
+        .pulse-bar:nth-child(4) { animation-delay: 0.45s; }
+        .pulse-bar:nth-child(5) { animation-delay: 0.6s; }
+
+        @keyframes pulse {
+            0%, 100% {
+                height: 20px;
+                opacity: 0.4;
+                transform: scaleY(0.6);
+            }
+            50% {
+                height: 50px;
+                opacity: 1;
+                transform: scaleY(1);
+                box-shadow: 0 0 12px rgba(0, 212, 255, 0.6);
+            }
+        }
+
+        .recording-status {
+            font-size: 13px;
+            color: #ff6b6b;
+            margin-top: 8px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .recording-status.active {
+            opacity: 1;
+        }
+
+        .error-banner {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 68, 68, 0.95);
+            color: #fff;
+            padding: 14px 28px;
+            border-radius: 10px;
+            font-size: 14px;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 8px 32px rgba(255, 68, 68, 0.3);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-banner" id="error-banner"></div>
+
+    <header class="header">
+        <div class="logo">Verelo Portal</div>
+        <div class="status-bar">
+            <span>Status:</span>
+            <div class="status-indicator" id="status-indicator"></div>
+            <span id="status-text">Disconnected</span>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <div class="video-grid" id="video-grid">
+            <div class="video-container" id="local-video">
+                <div class="video-placeholder">Your camera will appear here</div>
+            </div>
+        </div>
+
+        <div class="controls" id="join-controls">
+            <button class="btn btn-primary" id="join-btn" onclick="joinStream()">
+                <span>📹</span> Join Stream
+            </button>
+            <button class="btn btn-danger hidden" id="leave-btn" onclick="leaveStream()">
+                <span>📴</span> Leave Stream
+            </button>
+        </div>
+
+        <div class="voice-section">
+            <div class="voice-label">Voice Commit</div>
+            <button class="voice-btn" id="voice-btn" onclick="toggleRecording()">
+                🎤
+            </button>
+            <div class="pulse-container" id="pulse-container">
+                <div class="pulse-bar"></div>
+                <div class="pulse-bar"></div>
+                <div class="pulse-bar"></div>
+                <div class="pulse-bar"></div>
+                <div class="pulse-bar"></div>
+            </div>
+            <div class="recording-status" id="recording-status">Recording... Tap to stop</div>
+        </div>
+    </main>
+
+    <script>
+        // ============================================
+        // CONFIGURATION
+        // ============================================
+        const LIVEKIT_URL = 'wss://picyclo-wuka4eqw.livekit.cloud';
+        const MAX_RETRIES = 5;
+        const RETRY_DELAY_MS = 3000;
+
+        // ============================================
+        // STATE
+        // ============================================
+        let room = null;
+        let retryCount = 0;
+        let retryTimer = null;
+        let isRecording = false;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let localVideoTrack = null;
+        let localAudioTrack = null;
+
+        // ============================================
+        // LIVEKIT CONNECTION
+        // ============================================
+        async function joinStream() {
+            const joinBtn = document.getElementById('join-btn');
+            const leaveBtn = document.getElementById('leave-btn');
+            
+            joinBtn.disabled = true;
+            joinBtn.textContent = 'Connecting...';
+            updateStatus('connecting');
+
+            try {
+                // Fetch token from your backend
+                const tokenResponse = await fetch('/api/token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        room: 'verelo-main',
+                        identity: 'user-' + Math.random().toString(36).substr(2, 9)
+                    })
+                });
+
+                if (!tokenResponse.ok) {
+                    throw new Error('Failed to get token');
+                }
+
+                const { token } = await tokenResponse.json();
+                await initializeLiveKitRoom(token);
+
+                joinBtn.classList.add('hidden');
+                leaveBtn.classList.remove('hidden');
+                updateStatus('connected');
+
+            } catch (error) {
+                console.error('Join failed:', error);
+                showError('Failed to join stream: ' + error.message);
+                joinBtn.disabled = false;
+                joinBtn.innerHTML = '<span>📹</span> Join Stream';
+                updateStatus('disconnected');
+            }
+        }
+
+        async function initializeLiveKitRoom(token) {
+            if (retryTimer) clearTimeout(retryTimer);
+
+            try {
+                const { Room, RoomEvent, VideoPresets } = LiveKitClient;
+
+                room = new Room({
+                    adaptiveStream: true,
+                    dynacast: true,
+                    videoCaptureDefaults: {
+                        resolution: VideoPresets.h720.resolution,
+                    },
+                });
+
+                room.on(RoomEvent.Connected, () => {
+                    console.log('[LiveKit] Connected');
+                    retryCount = 0;
+                    updateStatus('connected');
+                });
+
+                room.on(RoomEvent.Disconnected, (reason) => {
+                    console.warn('[LiveKit] Disconnected:', reason);
+                    updateStatus('disconnected');
+                    if (retryCount < MAX_RETRIES) {
+                        attemptReconnect(token);
+                    }
+                });
+
+                room.on(RoomEvent.LocalTrackPublished, (publication) => {
+                    const track = publication.track;
+                    if (track.kind === 'video') {
+                        attachVideoTrack(track);
+                    }
+                });
+
+                room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+                    if (track.kind === 'video') {
+                        attachRemoteVideo(track, participant.identity);
+                    }
+                });
+
+                room.on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
+                    removeRemoteVideo(participant.identity);
+                });
+
+                await room.connect(LIVEKIT_URL, token);
+                await room.localParticipant.enableCameraAndMicrophone();
+
+            } catch (error) {
+                console.error('[LiveKit] Init failed:', error);
+                if (retryCount < MAX_RETRIES) {
+                    attemptReconnect(token);
+                } else {
+                    throw error;
+                }
+            }
+        }
+
+        function attemptReconnect(token) {
+            retryCount++;
+            updateStatus('connecting');
+            console.log(`[LiveKit] Retry ${retryCount}/${MAX_RETRIES}`);
+
+            retryTimer = setTimeout(() => {
+                initializeLiveKitRoom(token);
+            }, RETRY_DELAY_MS);
+        }
+
+        function leaveStream() {
+            if (retryTimer) clearTimeout(retryTimer);
+            
+            if (room) {
+                room.disconnect();
+                room = null;
+            }
+
+            document.getElementById('local-video').innerHTML = 
+                '<div class="video-placeholder">Your camera will appear here</div>';
+            
+            document.querySelectorAll('.remote-video').forEach(el => el.remove());
+
+            document.getElementById('join-btn').classList.remove('hidden');
+            document.getElementById('join-btn').disabled = false;
+            document.getElementById('join-btn').innerHTML = '<span>📹</span> Join Stream';
+            document.getElementById('leave-btn').classList.add('hidden');
+            
+            updateStatus('disconnected');
+        }
+
+        function attachVideoTrack(track) {
+            const container = document.getElementById('local-video');
+            container.innerHTML = '';
+            const videoEl = track.attach();
+            videoEl.style.width = '100%';
+            videoEl.style.height = '100%';
+            videoEl.style.objectFit = 'cover';
+            container.appendChild(videoEl);
+        }
+
+        function attachRemoteVideo(track, identity) {
+            const grid = document.getElementById('video-grid');
+            const container = document.createElement('div');
+            container.className = 'video-container remote-video';
+            container.id = 'video-' + identity;
+            
+            const videoEl = track.attach();
+            videoEl.style.width = '100%';
+            videoEl.style.height = '100%';
+            videoEl.style.objectFit = 'cover';
+            
+            const label = document.createElement('div');
+            label.className = 'participant-label';
+            label.textContent = identity;
+            
+            container.appendChild(videoEl);
+            container.appendChild(label);
+            grid.appendChild(container);
+        }
+
+        function removeRemoteVideo(identity) {
+            const el = document.getElementById('video-' + identity);
+            if (el) el.remove();
+        }
+
+        // ============================================
+        // VOICE COMMIT (RECORDING)
+        // ============================================
+        async function toggleRecording() {
+            const voiceBtn = document.getElementById('voice-btn');
+            const pulseContainer = document.getElementById('pulse-container');
+            const recordingStatus = document.getElementById('recording-status');
+
+            if (!isRecording) {
+                // Start recording
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    recordedChunks = [];
+
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            recordedChunks.push(event.data);
+                        }
+                    };
+
+                    mediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(recordedChunks, { type: 'audio/webm' });
+                        await uploadVoiceCommit(audioBlob);
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+
+                    mediaRecorder.start();
+                    isRecording = true;
+
+                    voiceBtn.classList.add('recording');
+                    pulseContainer.classList.add('active');
+                    recordingStatus.classList.add('active');
+
+                } catch (error) {
+                    console.error('Recording failed:', error);
+                    showError('Microphone access denied');
+                }
+
+            } else {
+                // Stop recording
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                }
+                
+                isRecording = false;
+                voiceBtn.classList.remove('recording');
+                pulseContainer.classList.remove('active');
+                recordingStatus.classList.remove('active');
+            }
+        }
+
+        async function uploadVoiceCommit(audioBlob) {
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'voice-commit.webm');
+
+            try {
+                const response = await fetch('/api/voice/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('Voice commit uploaded:', result);
+                    showError('Voice commit saved!');
+                    setTimeout(() => hideError(), 2000);
+                } else {
+                    throw new Error('Upload failed');
+                }
+
+            } catch (error) {
+                console.error('Upload error:', error);
+                showError('Failed to upload voice commit');
+            }
+        }
+
+        // ============================================
+        // UI HELPERS
+        // ============================================
+        function updateStatus(status) {
+            const indicator = document.getElementById('status-indicator');
+            const statusText = document.getElementById('status-text');
+
+            indicator.className = 'status-indicator ' + status;
+
+            const labels = {
+                connected: 'Connected',
+                connecting: 'Connecting...',
+                disconnected: 'Disconnected'
+            };
+
+            statusText.textContent = labels[status] || status;
+        }
+
+        function showError(message) {
+            const banner = document.getElementById('error-banner');
+            banner.textContent = message;
+            banner.style.display = 'block';
+            setTimeout(hideError, 5000);
+        }
+
+        function hideError() {
+            document.getElementById('error-banner').style.display = 'none';
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (retryTimer) clearTimeout(retryTimer);
+            if (room) room.disconnect();
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verelo | The Ledger</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-secondary: #141418;
+            --bg-tertiary: #1e1e24;
+            --bg-modal: rgba(10, 10, 12, 0.98);
+            --border-color: #2a2a35;
+            --accent-amber: #ff9500;
+            --accent-green: #00d084;
+            --accent-cyan: #00d4ff;
+            --accent-red: #ff3b30;
+            --text-primary: #ffffff;
+            --text-secondary: #8e8e93;
+            --text-muted: #636366;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* ============================================
+           AUTH WALL MODAL
+        ============================================ */
+        #auth-wall {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-modal);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        #auth-wall.hidden {
+            display: none;
+        }
+
+        .auth-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 48px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .auth-logo {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .auth-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .auth-subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 32px;
+        }
+
+        .auth-input {
+            width: 100%;
+            padding: 16px 20px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 16px;
+            margin-bottom: 16px;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+
+        .auth-input:focus {
+            outline: none;
+            border-color: var(--accent-amber);
+        }
+
+        .auth-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--accent-amber), #ff6b00);
+            border: none;
+            border-radius: 10px;
+            color: #000;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .auth-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(255, 149, 0, 0.3);
+        }
+
+        .auth-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .auth-error {
+            color: var(--accent-red);
+            font-size: 13px;
+            margin-top: 16px;
+            min-height: 20px;
+        }
+
+        /* ============================================
+           MAIN LEDGER UI (Hidden until auth)
+        ============================================ */
+        #ledger-ui {
+            display: none;
+            min-height: 100vh;
+        }
+
+        #ledger-ui.visible {
+            display: block;
+        }
+
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 20px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent-amber), #ff6b00);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .brand-text h1 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .brand-text span {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .logout-btn {
+            padding: 10px 20px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .logout-btn:hover {
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+        }
+
+        .stats {
+            display: flex;
+            gap: 24px;
+        }
+
+        .stat-item {
+            text-align: right;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--accent-amber);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        /* Commit Cards */
+        .commits-grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .commit-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.2s ease;
+        }
+
+        .commit-card:hover {
+            border-color: var(--accent-amber);
+        }
+
+        .commit-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .commit-meta {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .commit-id {
+            font-family: 'SF Mono', monospace;
+            font-size: 12px;
+            color: var(--text-muted);
+            background: var(--bg-tertiary);
+            padding: 4px 10px;
+            border-radius: 4px;
+        }
+
+        .commit-box {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: 4px;
+        }
+
+        .box-FUEL { background: rgba(255, 149, 0, 0.2); color: var(--accent-amber); }
+        .box-SELF { background: rgba(255, 59, 240, 0.2); color: #ff3bf0; }
+        .box-CARE { background: rgba(0, 208, 132, 0.2); color: var(--accent-green); }
+        .box-PLAY { background: rgba(0, 212, 255, 0.2); color: var(--accent-cyan); }
+        .box-GROW { background: rgba(175, 82, 222, 0.2); color: #af52de; }
+        .box-MOVE { background: rgba(255, 59, 48, 0.2); color: var(--accent-red); }
+
+        .commit-bcp {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .commit-content {
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* Audio Player */
+        .audio-container {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .audio-player {
+            flex: 1;
+            height: 40px;
+        }
+
+        .audio-player::-webkit-media-controls-panel {
+            background: var(--bg-tertiary);
+        }
+
+        .audio-loading {
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--accent-amber);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 16px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            animation: slideIn 0.3s ease;
+            z-index: 10001;
+        }
+
+        .toast.error {
+            background: var(--accent-red);
+            color: #fff;
+        }
+
+        .toast.success {
+            background: var(--accent-green);
+            color: #000;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <!-- ============================================
+         AUTH WALL MODAL
+    ============================================ -->
+    <div id="auth-wall">
+        <div class="auth-container">
+            <div class="auth-logo">📜</div>
+            <h2 class="auth-title">The Ledger</h2>
+            <p class="auth-subtitle">Curator access required</p>
+            <input 
+                type="password" 
+                id="auth-password" 
+                class="auth-input" 
+                placeholder="Enter curator password"
+                autocomplete="off"
+            >
+            <button class="auth-btn" id="auth-btn" onclick="authenticate()">
+                Unlock Ledger
+            </button>
+            <div class="auth-error" id="auth-error"></div>
+        </div>
+    </div>
+
+    <!-- ============================================
+         MAIN LEDGER UI
+    ============================================ -->
+    <div id="ledger-ui">
+        <header class="header">
+            <div class="brand">
+                <div class="brand-icon">📜</div>
+                <div class="brand-text">
+                    <h1>The Ledger</h1>
+                    <span>Voice Commit Archive</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <span id="curator-badge" style="color: var(--text-muted); font-size: 13px;"></span>
+                <button class="logout-btn" onclick="logout()">Lock Ledger</button>
+            </div>
+        </header>
+
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">All Voice Commits</h2>
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-value" id="total-count">0</div>
+                        <div class="stat-label">Total</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="commits-grid" id="commits-list">
+                <div class="empty-state">
+                    <div class="empty-state-icon">🎙️</div>
+                    <p>Loading voice commits...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // CONFIGURATION
+        // ============================================
+        const API_BASE = '';
+        const TOKEN_KEY = 'verelo_ledger_token';
+        const CURATOR_KEY = 'verelo_curator_id';
+
+        // ============================================
+        // AUTH WALL LOGIC
+        // ============================================
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+        });
+
+        function checkAuth() {
+            const token = sessionStorage.getItem(TOKEN_KEY);
+            const curatorId = sessionStorage.getItem(CURATOR_KEY);
+            
+            if (token && curatorId) {
+                showLedgerUI(curatorId);
+            } else {
+                showAuthWall();
+            }
+        }
+
+        function showAuthWall() {
+            document.getElementById('auth-wall').classList.remove('hidden');
+            document.getElementById('ledger-ui').classList.remove('visible');
+            document.getElementById('auth-password').focus();
+        }
+
+        function showLedgerUI(curatorId) {
+            document.getElementById('auth-wall').classList.add('hidden');
+            document.getElementById('ledger-ui').classList.add('visible');
+            document.getElementById('curator-badge').textContent = `Curator: ${curatorId}`;
+            loadCommits();
+        }
+
+        async function authenticate() {
+            const btn = document.getElementById('auth-btn');
+            const input = document.getElementById('auth-password');
+            const errorEl = document.getElementById('auth-error');
+            const password = input.value.trim();
+
+            if (!password) {
+                errorEl.textContent = 'Please enter a password';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Verifying...';
+            errorEl.textContent = '';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/ledger/auth`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ password })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.token) {
+                    throw new Error(data.error || 'Authentication failed');
+                }
+
+                // Store credentials
+                sessionStorage.setItem(TOKEN_KEY, data.token);
+                sessionStorage.setItem(CURATOR_KEY, data.curator_id || 'unknown');
+
+                // Clear input and show UI
+                input.value = '';
+                showLedgerUI(data.curator_id || 'curator');
+
+            } catch (error) {
+                console.error('[Ledger Auth] Failed:', error);
+                errorEl.textContent = error.message || 'Invalid password';
+                btn.disabled = false;
+                btn.textContent = 'Unlock Ledger';
+            }
+        }
+
+        function logout() {
+            sessionStorage.removeItem(TOKEN_KEY);
+            sessionStorage.removeItem(CURATOR_KEY);
+            showAuthWall();
+        }
+
+        // Enter key support for auth
+        document.getElementById('auth-password')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') authenticate();
+        });
+
+        // ============================================
+        // LEDGER DATA LOADING
+        // ============================================
+        async function loadCommits() {
+            const token = sessionStorage.getItem(TOKEN_KEY);
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/voice/list`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (response.status === 401) {
+                    logout();
+                    showToast('Session expired. Please log in again.', 'error');
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch commits');
+                }
+
+                const data = await response.json();
+                renderCommits(data.commits || []);
+                document.getElementById('total-count').textContent = data.count || 0;
+
+            } catch (error) {
+                console.error('[Ledger] Load error:', error);
+                document.getElementById('commits-list').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">⚠️</div>
+                        <p>Failed to load commits. Try refreshing.</p>
+                    </div>
+                `;
+            }
+        }
+
+        function renderCommits(commits) {
+            const container = document.getElementById('commits-list');
+
+            if (commits.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🎙️</div>
+                        <p>No voice commits in the ledger</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = commits.map(commit => `
+                <div class="commit-card">
+                    <div class="commit-header">
+                        <div class="commit-meta">
+                            <span class="commit-id">#${commit.id.slice(-8).toUpperCase()}</span>
+                            <span class="commit-box box-${commit.boxName || 'SELF'}">
+                                ${commit.boxName || 'SELF'}
+                            </span>
+                        </div>
+                        <span class="commit-bcp">BCP-${commit.bcp_step || 0}</span>
+                    </div>
+                    <div class="commit-content">
+                        ${commit.message || `Voice commit (${commit.duration ? commit.duration + 's' : 'audio'})`}
+                    </div>
+                    <div class="audio-container" id="audio-container-${commit.id}">
+                        <div class="audio-loading" onclick="loadAudio('${commit.id}')">
+                            <span>▶️</span>
+                            <span>Click to load audio</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ============================================
+        // AUDIO FETCHER (BLOB + OBJECT URL)
+        // ============================================
+        async function loadAudio(commitId) {
+            const container = document.getElementById(`audio-container-${commitId}`);
+            const token = sessionStorage.getItem(TOKEN_KEY);
+
+            // Show loading state
+            container.innerHTML = `
+                <div class="audio-loading">
+                    <div class="spinner"></div>
+                    <span>Decrypting audio...</span>
+                </div>
+            `;
+
+            try {
+                // Fetch encrypted audio with auth header
+                const response = await fetch(`${API_BASE}/api/voice/download/${commitId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'audio/webm,audio/*'
+                    }
+                });
+
+                if (response.status === 401) {
+                    logout();
+                    showToast('Session expired', 'error');
+                    return;
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `HTTP ${response.status}`);
+                }
+
+                // Get audio as Blob
+                const audioBlob = await response.blob();
+                
+                // Validate blob type
+                if (audioBlob.size === 0) {
+                    throw new Error('Empty audio data');
+                }
+
+                // Create object URL from blob
+                const audioUrl = URL.createObjectURL(audioBlob);
+
+                // Inject audio player with blob URL
+                container.innerHTML = `
+                    <audio 
+                        class="audio-player" 
+                        controls 
+                        preload="metadata"
+                        src="${audioUrl}"
+                        onended="this.currentTime = 0"
+                    ></audio>
+                `;
+
+                // Auto-play
+                const player = container.querySelector('audio');
+                player.play().catch(() => {
+                    // Auto-play blocked, user must click
+                });
+
+                console.log(`[Ledger] Loaded audio for ${commitId} (${audioBlob.size} bytes)`);
+
+            } catch (error) {
+                console.error('[Ledger] Audio load error:', error);
+                container.innerHTML = `
+                    <div class="audio-loading" onclick="loadAudio('${commitId}')" style="color: var(--accent-red);">
+                        <span>❌</span>
+                        <span>Failed to load. Click to retry</span>
+                    </div>
+                `;
+                showToast('Audio load failed: ' + error.message, 'error');
+            }
+        }
+
+        // ============================================
+        // UI HELPERS
+        // ============================================
+        function showToast(message, type) {
+            const existing = document.querySelector('.toast');
+            if (existing) existing.remove();
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // Cleanup object URLs on page unload
+        window.addEventListener('beforeunload', () => {
+            document.querySelectorAll('audio').forEach(player => {
+                if (player.src && player.src.startsWith('blob:')) {
+                    URL.revokeObjectURL(player.src);
+                }
+            });
+        });
+    </script>
+
+<!-- Unified BCP Advance Logic (Kimi) -->
+<script>
+/**
+ * advanceCommit - Unified BCP state advancement handler
+ * @param {string} id - The commit ID to advance
+ * @param {string} type - Optional: 'voice' or 'box' (for logging)
+ */
+async function advanceCommit(id, type = 'voice') {
+    const token = sessionStorage.getItem('verelo_ledger_token') || 
+                  sessionStorage.getItem('token') || 
+                  localStorage.getItem('token');
+    
+    const btn = event?.target;
+    const originalText = btn?.textContent;
+    
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Processing...';
+    }
+
+    try {
+        const response = await fetch(`/api/commits/${id}/bcp-advance`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : ''
+            },
+            body: JSON.stringify({ type })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || `HTTP ${response.status}`);
+        }
+
+        if (!data.success) {
+            throw new Error(data.error || 'Advancement failed');
+        }
+
+        console.log(`[Advance] ${id} → BCP-${data.new_state}`);
+
+        const card = document.getElementById(`commit-${id}`) || 
+                     document.querySelector(`[data-commit-id="${id}"]`) ||
+                     btn?.closest('.commit-card');
+        
+        if (card) {
+            card.style.transition = 'all 0.3s ease';
+            card.style.opacity = '0';
+            card.style.transform = 'translateX(-20px)';
+            
+            setTimeout(() => {
+                card.remove();
+                
+                const column = document.querySelector('.column-content');
+                if (column && column.children.length === 0) {
+                    column.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📭</div>
+                            <p>No commitments in this stage</p>
+                        </div>
+                    `;
+                }
+                
+                const counter = document.querySelector('.column-count');
+                if (counter) {
+                    const current = parseInt(counter.textContent) || 0;
+                    counter.textContent = Math.max(0, current - 1);
+                }
+            }, 300);
+            
+            showToast(`✓ Advanced to BCP-${data.new_state}`, 'success');
+            
+        } else {
+            window.location.reload();
+        }
+
+    } catch (error) {
+        console.error('[Advance] Error:', error);
+        showToast(`✗ ${error.message}`, 'error');
+        
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = originalText || 'Advance';
+        }
+    }
+}
+
+function showToast(message, type = 'success') {
+    const existing = document.querySelector('.toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        padding: 16px 24px;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 500;
+        z-index: 10000;
+        animation: slideIn 0.3s ease;
+        ${type === 'success' ? 'background: #00d084; color: #000;' : 'background: #ff3b30; color: #fff;'}
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.animation = 'slideIn 0.3s ease reverse';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+if (!document.getElementById('toast-styles')) {
+    const style = document.createElement('style');
+    style.id = 'toast-styles';
+    style.textContent = `
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    `;
+    document.head.appendChild(style);
+}
+</script>
+
+</body>
