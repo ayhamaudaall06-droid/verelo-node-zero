@@ -56,12 +56,35 @@ app.get('/debug/files', (req, res) => {
 app.post('/api/livekit/room-metadata', async (req, res) => {
   const { room, productId, action } = req.body;
   if (!room) return res.status(400).json({ error: 'room required' });
+  
   if (action === 'clear') {
+    const { clearFallbackProduct } = await import('./services/fallbackStore.js');
+    clearFallbackProduct();
     const result = await clearActiveProduct(room);
-    return res.json(result);
+    return res.json(result.ok ? result : { ok: true, fallback: true });
   }
+  
   if (!productId) return res.status(400).json({ error: 'productId required' });
+  
   const result = await setActiveProduct(room, productId);
+  if (!result.ok) {
+    const { setFallbackProduct } = await import('./services/fallbackStore.js');
+    const db = new DatabaseSync(join(process.cwd(), 'data', 'verelo.db'));
+    const p = db.prepare('SELECT * FROM products WHERE id = ?').get(productId);
+    db.close();
+    if (p) {
+      let meta = {};
+      try { meta = JSON.parse(p.metadata_json || '{}'); } catch {}
+      setFallbackProduct({
+        id: p.id, name: p.name, description: p.description,
+        price: p.price, currency: p.currency, category: p.category,
+        box_type: p.box_type, size: p.size, color: p.color,
+        material: p.material, image: null,
+        customization_options: meta.customization || []
+      });
+      return res.json({ ok: true, fallback: true, product: p.name });
+    }
+  }
   res.status(result.ok ? 200 : 500).json(result);
 });
 
@@ -78,8 +101,11 @@ app.post('/api/active-product', (req, res) => {
   activeProductCache = getActiveProductFromDB(productId);
   res.json({ ok: true, product: activeProductCache });
 });
-app.get('/api/active-product', (req, res) => {
-  res.json({ product: activeProductCache });
+app.get('/api/active-product', async (req, res) => {
+  if (activeProductCache) return res.json({ product: activeProductCache });
+  const { getFallbackProduct } = await import('./services/fallbackStore.js');
+  const fb = getFallbackProduct();
+  res.json({ product: fb });
 });
 
 // ── BOX / ORDER (Single Box Logic) ──
