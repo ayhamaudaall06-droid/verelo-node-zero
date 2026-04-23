@@ -1,20 +1,7 @@
-# Dependencies
-node_modules/
-
-# Environment
 .env
-.env.save
-.env.*.local
-
-# Database & Runtime
+.env.*
+!.env.example
+node_modules/
 data/
-*.db
-*.db-shm
-*.db-wal
-dump.rdb
-
-# OS
-.DS_Store
-
-# Logs
 *.log
+.DS_Store
