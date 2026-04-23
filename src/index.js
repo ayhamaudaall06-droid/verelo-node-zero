@@ -186,6 +186,21 @@ app.get('/api/products', (req, res) => {
   res.json({ products: rows });
 });
 
+
+// ── LIVEKIT TOKEN ──
+app.get('/api/voice/listen', async (req, res) => {
+  const { room } = req.query;
+  if (!room) return res.status(400).json({ error: 'room required' });
+  const at = new AccessToken(
+    process.env.LIVEKIT_API_KEY,
+    process.env.LIVEKIT_API_SECRET,
+    { identity: 'viewer-' + Math.random().toString(36).slice(2, 8) }
+  );
+  at.addGrant({ roomJoin: true, room: room, canPublish: false, canSubscribe: true });
+  const token = await at.toJwt();
+  res.json({ token, room });
+});
+
 // ── 404 ──
 app.use((req, res) => res.status(404).send(`Cannot GET ${req.path}`));
 
