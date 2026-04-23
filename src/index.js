@@ -145,6 +145,21 @@ app.get('/index.html', (req, res) => res.sendFile(join(publicPath, 'index.html')
 app.get('/admin.html', (req, res) => res.sendFile(join(publicPath, 'admin.html')));
 app.get('/live.html', (req, res) => res.sendFile(join(publicPath, 'live.html')));
 
+
+// ── INLINE PRODUCTS API (emergency fallback) ──
+app.get('/api/products', (req, res) => {
+  const db = new DatabaseSync(join(process.cwd(), 'data', 'verelo.db'));
+  const isActive = req.query.is_active;
+  let rows;
+  if (isActive !== undefined) {
+    rows = db.prepare('SELECT * FROM products WHERE is_active = ?').all(isActive);
+  } else {
+    rows = db.prepare('SELECT * FROM products').all();
+  }
+  db.close();
+  res.json({ products: rows });
+});
+
 // ── 404 ──
 app.use((req, res) => res.status(404).send(`Cannot GET ${req.path}`));
 
