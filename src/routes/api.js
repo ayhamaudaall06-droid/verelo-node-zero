@@ -3,7 +3,7 @@ import { parseInboundMessage } from '../agents/whatsappHandler.js';
 import redis from '../services/queue.js';
 
 const router = Router();
-const VERIFY_TOKEN = 'verelo_webhook_secret_2026';
+const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || 'verelo_webhook_secret_2026';
 
 router.get('/webhook/whatsapp', (req, res) => {
   const mode = req.query['hub.mode'];
