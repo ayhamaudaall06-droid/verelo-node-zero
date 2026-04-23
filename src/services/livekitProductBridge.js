@@ -1,4 +1,3 @@
-// src/services/livekitProductBridge.js
 import { RoomServiceClient } from 'livekit-server-sdk';
 import { DatabaseSync } from 'node:sqlite';
 import { existsSync, mkdirSync } from 'fs';
@@ -13,23 +12,21 @@ if (!existsSync(dbDir)) mkdirSync(dbDir, { recursive: true });
 const db = new DatabaseSync(dbPath);
 db.exec('PRAGMA journal_mode = WAL;');
 
-const LIVEKIT_URL = process.env.LIVEKIT_URL || 'wss://verelo.livekit.cloud';
-const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || '';
-const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET || '';
+function getRoomService() {
+  const url = process.env.LIVEKIT_URL || 'wss://verelo.livekit.cloud';
+  const key = process.env.LIVEKIT_API_KEY || '';
+  const secret = process.env.LIVEKIT_API_SECRET || '';
+  return new RoomServiceClient(url, key, secret);
+}
 
-const roomService = new RoomServiceClient(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
-
-/**
- * Set the active product for a LiveKit room.
- * This writes product metadata into the room so all participants receive it.
- */
 export async function setActiveProduct(roomName, productId) {
-  if (!LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {
+  const key = process.env.LIVEKIT_API_KEY;
+  const secret = process.env.LIVEKIT_API_SECRET;
+  if (!key || !secret) {
     console.warn('[LiveKitBridge] Missing credentials — metadata not synced');
     return { ok: false, error: 'Missing LiveKit credentials' };
   }
 
-  // Fetch product with media
   const product = db.prepare(`
     SELECT p.*, pm.url as primary_image
     FROM products p
@@ -41,7 +38,6 @@ export async function setActiveProduct(roomName, productId) {
     return { ok: false, error: 'Product not found or inactive' };
   }
 
-  // Parse metadata_json
   let meta = {};
   try { meta = JSON.parse(product.metadata_json || '{}'); } catch {}
 
@@ -65,14 +61,12 @@ export async function setActiveProduct(roomName, productId) {
   };
 
   try {
+    const roomService = getRoomService();
     await roomService.updateRoomMetadata(roomName, JSON.stringify(payload));
-    
-    // Log to sync_state
     db.prepare(`
       INSERT INTO sync_state (product_id, target_platform, status, payload_hash, synced_at)
       VALUES (?, 'livekit', 'synced', ?, ?)
     `).run(productId, product.id, Math.floor(Date.now() / 1000));
-    
     console.log(`[LiveKitBridge] Product "${product.name}" pushed to room "${roomName}"`);
     return { ok: true, product: payload.verelo_product };
   } catch (err) {
@@ -81,13 +75,12 @@ export async function setActiveProduct(roomName, productId) {
   }
 }
 
-/**
- * Clear active product from room (when stream ends).
- */
 export async function clearActiveProduct(roomName) {
-  if (!LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) return { ok: false };
-  
+  const key = process.env.LIVEKIT_API_KEY;
+  const secret = process.env.LIVEKIT_API_SECRET;
+  if (!key || !secret) return { ok: false };
   try {
+    const roomService = getRoomService();
     await roomService.updateRoomMetadata(roomName, JSON.stringify({ verelo_product: null }));
     return { ok: true };
   } catch (err) {
@@ -95,9 +88,6 @@ export async function clearActiveProduct(roomName) {
   }
 }
 
-/**
- * Get currently active product for a room (fallback read from DB if needed).
- */
 export function getActiveProductFromDB(productId) {
   return db.prepare(`
     SELECT p.*, pm.url as primary_image
