@@ -207,7 +207,7 @@ app.use((err, req, res, next) => {
 // ── AUTO-SEED DEMO PRODUCT (if empty) ──
 async function seedIfEmpty() {
   const db = dbModule.db;
-  const count = await db.get('SELECT COUNT(*) as c FROM products');
+  const count = db.prepare('SELECT COUNT(*) as c FROM products').get();
   if (count.c === 0) {
     await db.run(
       `INSERT INTO products (id, sku, name, description, price, currency, category, box_type, inventory_count, is_active, metadata_json, created_at, updated_at)
