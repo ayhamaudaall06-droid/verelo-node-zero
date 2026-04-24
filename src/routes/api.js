@@ -1,9 +1,23 @@
 import { Router } from 'express';
-import { parseInboundMessage } from '../agents/whatsappHandler.js';
+import crypto from 'crypto';
 import redis from '../services/queue.js';
 
 const router = Router();
 const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || 'verelo_webhook_secret_2026';
+const APP_SECRET = process.env.META_APP_SECRET || '';
+
+// ── Signature Validation ──
+function verifySignature(payload, signature) {
+  if (!signature || !APP_SECRET) return false;
+  const expected = crypto
+    .createHmac('sha256', APP_SECRET)
+    .update(payload, 'utf8')
+    .digest('hex');
+  return crypto.timingSafeEqual(
+    Buffer.from(signature.replace('sha256=', ''), 'hex'),
+    Buffer.from(expected, 'hex')
+  );
+}
 
 // ── WhatsApp Verification (Meta handshake) ──
 router.get('/webhook/whatsapp', (req, res) => {
@@ -18,17 +32,26 @@ router.get('/webhook/whatsapp', (req, res) => {
   res.sendStatus(403);
 });
 
-// ── WhatsApp Inbound (Async ACK + Queue) ──
+// ── WhatsApp Inbound (Async ACK + Signature Check + Queue) ──
 router.post('/webhook/whatsapp', async (req, res) => {
-  // 1. ACK immediately (prevents Meta retries)
+  // 1. ACK immediately
   res.sendStatus(200);
   
-  // 2. Parse and queue
+  // 2. Validate signature
+  const signature = req.headers['x-hub-signature-256'] || '';
+  const payload = JSON.stringify(req.body);
+  
+  if (!verifySignature(payload, signature)) {
+    console.warn('[WEBHOOK] ❌ Invalid signature — rejected');
+    return;
+  }
+  
+  // 3. Parse and queue
   try {
-    const payload = req.body;
-    if (payload.object === 'whatsapp_business_account') {
-      await redis.lPush('whatsapp:inbound', JSON.stringify(payload));
-      console.log(`[WEBHOOK] Queued message from ${payload.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.from}`);
+    const body = req.body;
+    if (body.object === 'whatsapp_business_account') {
+      await redis.lPush('whatsapp:inbound', JSON.stringify(body));
+      console.log(`[WEBHOOK] ✅ Queued signed message from ${body.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.from}`);
     }
   } catch (err) {
     console.error('[WEBHOOK] Queue error:', err.message);
