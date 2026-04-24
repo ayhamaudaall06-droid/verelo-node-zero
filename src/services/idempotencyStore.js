@@ -1,7 +1,13 @@
 import { DatabaseSync } from 'node:sqlite';
-import { join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
+import { dirname, join } from 'path';
 
 const dbPath = process.env.DATABASE_PATH || join(process.cwd(), 'data', 'verelo.db');
+
+// CRITICAL: Create directory BEFORE opening DB
+const dbDir = dirname(dbPath);
+if (!existsSync(dbDir)) mkdirSync(dbDir, { recursive: true });
+
 const db = new DatabaseSync(dbPath);
 
 db.exec(`

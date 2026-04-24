@@ -1,5 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
-import { join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
+import { dirname, join } from 'path';
 import redis from './queue.js';
 import { getSession, saveSession } from './sessionStore.js';
 import { isDuplicate, markProcessed } from './idempotencyStore.js';
@@ -11,7 +12,13 @@ import {
 import { sendMessage } from './whatsappSender.js';
 
 const dbPath = process.env.DATABASE_PATH || join(process.cwd(), 'data', 'verelo.db');
+
+// CRITICAL: Create directory BEFORE opening DB
+const dbDir = dirname(dbPath);
+if (!existsSync(dbDir)) mkdirSync(dbDir, { recursive: true });
+
 const db = new DatabaseSync(dbPath);
+db.exec('PRAGMA journal_mode = WAL;');
 
 // Idempotency key: phone + messageId (Meta guarantees unique message IDs)
 function idempotencyKey(phone, messageId) {
