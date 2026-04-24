@@ -1,19 +1,18 @@
+import 'dotenv/config';
 import { readdirSync, existsSync, readFileSync } from 'fs';
 import crypto from 'crypto';
+import { DatabaseSync } from 'node:sqlite';
 import { getPresignedUploadUrl } from './services/r2Presign.js';
 import { AccessToken } from 'livekit-server-sdk';
 import { getActiveProduct } from './services/activeProductStore.js';
 import express from 'express';
-import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { DatabaseSync } from 'node:sqlite';
 import dbModule from './services/db.js';
 import apiRoutes from './routes/api.js';
 import { startCommerceWorker } from './services/whatsappCommerceWorker.js';
 import { setActiveProduct, clearActiveProduct, getActiveProductFromDB } from './services/livekitProductBridge.js';
 
-dotenv.config();
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const publicPath = join(process.cwd(), 'public');
@@ -171,7 +170,6 @@ app.get('/index.html', (req, res) => res.sendFile(join(publicPath, 'index.html')
 app.get('/admin.html', (req, res) => res.sendFile(join(publicPath, 'admin.html')));
 app.get('/live.html', (req, res) => res.sendFile(join(publicPath, 'live.html')));
 
-
 // ── INLINE PRODUCTS API (emergency fallback) ──
 app.get('/api/products', (req, res) => {
   const db = new DatabaseSync(join(process.cwd(), 'data', 'verelo.db'));
@@ -185,7 +183,6 @@ app.get('/api/products', (req, res) => {
   db.close();
   res.json({ products: rows });
 });
-
 
 // ── LIVEKIT TOKEN ──
 app.get('/api/voice/listen', async (req, res) => {
@@ -215,23 +212,6 @@ const PORT = process.env.PORT || 8080;
 
 // ── INIT DB + SEED ──
 await dbModule.init();
-const seedDb = new DatabaseSync(join(process.cwd(), 'data', 'verelo.db'));
-const count = seedDb.prepare('SELECT COUNT(*) as c FROM products').get();
-if (count.c === 0) {
-  seedDb.prepare(`
-    INSERT INTO products (id, sku, name, description, price, currency, category, box_type, inventory_count, is_active, metadata_json, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    'PROD-001', 'COFFEE-001', 'Ethiopian Yirgacheffe', 'Single-origin light roast, 250g',
-    24.00, 'USD', 'coffee', 'trending', 50, 1,
-    '{"size":"250g","material":"beans","customization":["grind_size","roast_level"]}',
-    Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000)
-  );
-  console.log('[Seed] Demo product created');
-} else {
-  console.log('[Seed] Products already exist:', count.c);
-}
-seedDb.close();
 
 app.listen(PORT, () => {
   console.log(`[API] Verelo Core Live on ${PORT}`);
