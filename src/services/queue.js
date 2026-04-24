@@ -2,7 +2,7 @@ let redis = null;
 
 async function getRedis() {
   if (redis) return redis;
-  if (!process.env.REDIS_URL || process.env.REDIS_URL.includes('railway.internal')) return null;
+  if (!process.env.REDIS_URL) return null;
   try {
     const { createClient } = await import('redis');
     redis = createClient({ url: process.env.REDIS_URL });
