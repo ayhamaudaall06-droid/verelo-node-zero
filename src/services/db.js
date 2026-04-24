@@ -6,14 +6,13 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const dbPath = process.env.DATABASE_PATH || join(process.cwd(), 'data', 'verelo.db');
 
-// Ensure directory exists
 const dbDir = dirname(dbPath);
 if (!existsSync(dbDir)) mkdirSync(dbDir, { recursive: true });
 
 const db = new DatabaseSync(dbPath);
 db.exec('PRAGMA journal_mode = WAL;');
 
-// ── SCHEMA CREATION (idempotent) ──
+// ── SCHEMA ──
 db.exec(`
   CREATE TABLE IF NOT EXISTS products (
     id TEXT PRIMARY KEY,
@@ -100,35 +99,43 @@ db.exec(`
 export function seedIfEmpty() {
   try {
     const count = db.prepare('SELECT COUNT(*) as c FROM products').get();
-    if (count.c === 0) {
-      console.log('[Seed] No products — seeding 22 demo items...');
-      const now = Math.floor(Date.now() / 1000);
-      const stmt = db.prepare(`
-        INSERT INTO products (id, sku, name, description, price, currency, category, box_type, status, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-      for (let i = 1; i <= 22; i++) {
-        stmt.run(
-          `prod-${i}`,
-          `SKU-${1000 + i}`,
-          `Verelo Item ${i}`,
-          `Factory-direct product ${i}`,
-          49.99,
-          'USD',
-          'standard',
-          'partner_trending',
-          'live',
-          1,
-          now,
-          now
-        );
-      }
-      console.log('[Seed] 22 products seeded.');
-    } else {
+    if (count.c > 0) {
       console.log(`[Seed] Products already exist: ${count.c}`);
+      return;
     }
+
+    console.log('[Seed] No products — seeding 22 demo items...');
+    const now = Math.floor(Date.now() / 1000);
+    
+    db.exec('BEGIN TRANSACTION');
+    
+    const stmt = db.prepare(`
+      INSERT OR IGNORE INTO products (id, sku, name, description, price, currency, category, box_type, status, is_active, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    for (let i = 1; i <= 22; i++) {
+      stmt.run(
+        `prod-${i}`,
+        `SKU-${1000 + i}`,
+        `Verelo Item ${i}`,
+        `Factory-direct product ${i}`,
+        49.99,
+        'USD',
+        'standard',
+        'partner_trending',
+        'live',
+        1,
+        now,
+        now
+      );
+    }
+    
+    db.exec('COMMIT');
+    console.log('[Seed] 22 products seeded.');
   } catch (err) {
     console.error('[Seed Error]', err.message);
+    try { db.exec('ROLLBACK'); } catch {}
   }
 }
 
