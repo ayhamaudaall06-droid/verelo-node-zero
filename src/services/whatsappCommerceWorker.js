@@ -161,7 +161,12 @@ export async function startCommerceWorker() {
   while (true) {
     try {
       const payload = await dequeueInbound();
-      if (payload) await processInboundMessage(payload);
+      if (payload) {
+        await processInboundMessage(payload);
+      } else {
+        // No message, wait a bit before polling again
+        await new Promise(r => setTimeout(r, 100));
+      }
     } catch (err) {
       console.error('[CommerceWorker] Error:', err.message);
       await new Promise(r => setTimeout(r, 1000));
