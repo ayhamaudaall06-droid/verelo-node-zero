@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    :root {
+      --verelo-accent: #c45c3e;
+      --verelo-accent-light: rgba(196, 92, 62, 0.15);
+      --verelo-bg: #f5f3ef;
+      --glass-bg: rgba(255, 255, 255, 0.72);
+      --glass-border: rgba(255, 255, 255, 0.4);
+      --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+      --track-bg: rgba(0, 0, 0, 0.06);
+      --text-muted: #6b6b6b;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--verelo-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .slide-container {
+      width: 100%;
+      max-width: 380px;
+      position: relative;
+    }
+
+    .slide-track {
+      height: 64px;
+      background: var(--track-bg);
+      backdrop-filter: blur(20px) saturate(1.4);
+      -webkit-backdrop-filter: blur(20px) saturate(1.4);
+      border-radius: 32px;
+      border: 1px solid var(--glass-border);
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.04);
+    }
+
+    .slide-hint {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.3px;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      user-select: none;
+    }
+
+    .slide-hint.confirmed {
+      color: var(--verelo-accent);
+      font-weight: 700;
+    }
+
+    .slide-thumb {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, var(--verelo-accent) 0%, #a84d32 100%);
+      border-radius: 28px;
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      cursor: grab;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 
+        0 4px 12px rgba(196, 92, 62, 0.35),
+        0 2px 4px rgba(0,0,0,0.1),
+        inset 0 1px 0 rgba(255,255,255,0.2);
+      transition: transform 0.1s ease, box-shadow 0.2s ease;
+      touch-action: none;
+      z-index: 10;
+    }
+
+    .slide-thumb:active {
+      cursor: grabbing;
+      transform: scale(0.96);
+      box-shadow: 
+        0 2px 8px rgba(196, 92, 62, 0.3),
+        0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .slide-thumb::after {
+      content: '→';
+      color: white;
+      font-size: 20px;
+      font-weight: 700;
+      transition: opacity 0.2s;
+    }
+
+    .slide-thumb.confirmed {
+      background: linear-gradient(135deg, #2d8a4e 0%, #1e6b38 100%);
+      box-shadow: 
+        0 4px 12px rgba(45, 138, 78, 0.35),
+        0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .slide-thumb.confirmed::after {
+      content: '✓';
+    }
+
+    .slide-progress {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, var(--verelo-accent-light) 0%, transparent 100%);
+      border-radius: 32px;
+      transform-origin: left;
+      transform: scaleX(0);
+      transition: transform 0.1s linear;
+      pointer-events: none;
+      opacity: 0.6;
+    }
+
+    .slide-shine {
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 50%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      animation: shine 3s infinite;
+      pointer-events: none;
+    }
+
+    @keyframes shine {
+      0% { left: -100%; }
+      50% { left: 200%; }
+      100% { left: 200%; }
+    }
+
+    .order-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(24px) saturate(1.4);
+      -webkit-backdrop-filter: blur(24px) saturate(1.4);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: var(--glass-shadow);
+    }
+
+    .order-card h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #1a1a1a;
+    }
+
+    .order-item {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .order-total {
+      display: flex;
+      justify-content: space-between;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--verelo-accent);
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(0,0,0,0.06);
+    }
+
+    .confirmed-state {
+      text-align: center;
+      padding: 20px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.4s ease;
+    }
+
+    .confirmed-state.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .confirmed-state .check {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, #2d8a4e, #1e6b38);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 12px;
+      color: white;
+      font-size: 24px;
+      box-shadow: 0 4px 12px rgba(45, 138, 78, 0.3);
+    }
+
+    .confirmed-state p {
+      font-size: 14px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="slide-container">
+    <div class="order-card" id="order-summary">
+      <h3>Order #ORD-ABC123</h3>
+      <div class="order-item"><span>Ethiopian Yirgacheffe</span><span>USD 24.00</span></div>
+      <div class="order-item"><span>Verelo Item 2</span><span>USD 49.99</span></div>
+      <div class="order-total"><span>Total</span><span>USD 73.99</span></div>
+    </div>
+
+    <div class="slide-track" id="slide-track">
+      <div class="slide-shine"></div>
+      <div class="slide-progress" id="slide-progress"></div>
+      <div class="slide-hint" id="slide-hint">Slide to confirm order</div>
+      <div class="slide-thumb" id="slide-thumb"></div>
+    </div>
+
+    <div class="confirmed-state" id="confirmed-state">
+      <div class="check">✓</div>
+      <p>Order confirmed & WhatsApp notification sent</p>
+    </div>
+  </div>
+
+  <script>
+    const track = document.getElementById('slide-track');
+    const thumb = document.getElementById('slide-thumb');
+    const progress = document.getElementById('slide-progress');
+    const hint = document.getElementById('slide-hint');
+    const confirmedState = document.getElementById('confirmed-state');
+    
+    let isDragging = false;
+    let startX = 0;
+    let currentX = 4;
+    const trackWidth = track.offsetWidth;
+    const thumbWidth = 56;
+    const maxDrag = trackWidth - thumbWidth - 8;
+    const confirmThreshold = maxDrag * 0.85;
+    let isConfirmed = false;
+
+    function updatePosition(x) {
+      currentX = Math.max(4, Math.min(x, maxDrag));
+      const pct = (currentX - 4) / maxDrag;
+      
+      thumb.style.left = currentX + 'px';
+      progress.style.transform = `scaleX(${pct})`;
+      
+      // Fade hint as user drags
+      hint.style.opacity = Math.max(0, 1 - pct * 2.5);
+    }
+
+    function onConfirm() {
+      if (isConfirmed) return;
+      isConfirmed = true;
+      
+      thumb.classList.add('confirmed');
+      hint.textContent = 'Confirmed';
+      hint.classList.add('confirmed');
+      hint.style.opacity = 1;
+      
+      // Snap to end
+      thumb.style.transition = 'left 0.3s cubic-bezier(0.16,1,0.3,1)';
+      progress.style.transition = 'transform 0.3s ease';
+      updatePosition(maxDrag + 4);
+      
+      // Hide track, show confirmed state
+      setTimeout(() => {
+        track.style.opacity = '0';
+        track.style.transform = 'scale(0.95)';
+        track.style.transition = 'all 0.4s ease';
+        confirmedState.classList.add('visible');
+        
+        // Trigger your actual order confirmation API here
+        console.log('[SlideConfirm] Order confirmed — calling API...');
+        // confirmOrder('ORD-ABC123');
+      }, 300);
+    }
+
+    function reset() {
+      if (isConfirmed) return;
+      thumb.style.transition = 'left 0.3s cubic-bezier(0.16,1,0.3,1)';
+      progress.style.transition = 'transform 0.3s ease';
+      updatePosition(4);
+      setTimeout(() => {
+        thumb.style.transition = '';
+        progress.style.transition = '';
+      }, 300);
+    }
+
+    // Mouse events
+    thumb.addEventListener('mousedown', (e) => {
+      if (isConfirmed) return;
+      isDragging = true;
+      startX = e.clientX - currentX;
+      thumb.style.transition = '';
+      progress.style.transition = '';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging || isConfirmed) return;
+      updatePosition(e.clientX - startX);
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (!isDragging) return;
+      isDragging = false;
+      if (currentX >= confirmThreshold) {
+        onConfirm();
+      } else {
+        reset();
+      }
+    });
+
+    // Touch events (mobile)
+    thumb.addEventListener('touchstart', (e) => {
+      if (isConfirmed) return;
+      isDragging = true;
+      startX = e.touches[0].clientX - currentX;
+      thumb.style.transition = '';
+      progress.style.transition = '';
+    }, { passive: false });
+
+    document.addEventListener('touchmove', (e) => {
+      if (!isDragging || isConfirmed) return;
+      e.preventDefault();
+      updatePosition(e.touches[0].clientX - startX);
+    }, { passive: false });
+
+    document.addEventListener('touchend', () => {
+      if (!isDragging) return;
+      isDragging = false;
+      if (currentX >= confirmThreshold) {
+        onConfirm();
+      } else {
+        reset();
+      }
+    });
+
+    // Window resize
+    window.addEventListener('resize', () => {
+      const newMax = track.offsetWidth - thumbWidth - 8;
+      if (!isConfirmed) updatePosition(Math.min(currentX, newMax));
+    });
+  </script>
+</body>
+</html>

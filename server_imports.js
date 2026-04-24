@@ -1,0 +1,16 @@
+import dotenv from 'dotenv';
+dotenv.config(); // MUST be first — before anything reads process.env
+
+import { readdirSync, existsSync, readFileSync } from 'fs';
+import crypto from 'crypto';
+import { getPresignedUploadUrl } from './services/r2Presign.js';
+import { AccessToken } from 'livekit-server-sdk';
+import { getActiveProduct } from './services/activeProductStore.js';
+import express from 'express';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { DatabaseSync } from 'node:sqlite';
+import dbModule from './services/db.js';
+import apiRoutes from './routes/api.js';
+import { startWhatsAppSyncWorker } from './services/whatsappSyncWorker.js';
+import { setActiveProduct, clearActiveProduct, getActiveProductFromDB } from './services/livekitProductBridge.js';

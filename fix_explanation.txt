@@ -1,0 +1,7 @@
+PROBLEM:
+1. import dotenv from 'dotenv';       // module is loaded
+2. import { setActiveProduct } from '...'; // bridge loads and immediately tries to read process.env (EMPTY!)
+3. dotenv.config();                   // variables are loaded here, but bridge already failed to see them
+
+FIX:
+You must ensure dotenv.config() runs BEFORE any other local imports that depend on environment variables.

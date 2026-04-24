@@ -3,145 +3,221 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verelo Admin — Factory Control</title>
-  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <title>Admin - Pending Orders</title>
   <style>
-    :root { --bg: #f5f3ef; --card: #ffffff; --accent: #c45c3e; --text: #1a1a1a; --muted: #6b6b6b; --border: rgba(0,0,0,0.08); --success: #2d8a4e; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    :root {
+      --verelo-accent: #c45c3e;
+      --verelo-accent-light: rgba(196, 92, 62, 0.15);
+      --verelo-bg: #f5f3ef;
+      --glass-bg: rgba(255, 255, 255, 0.72);
+      --glass-border: rgba(255, 255, 255, 0.4);
+      --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+      --track-bg: rgba(0, 0, 0, 0.06);
+      --text-muted: #6b6b6b;
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
-    .header { background: var(--card); border-bottom: 1px solid var(--border); padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
-    .logo { font-family: 'Caveat', cursive; font-size: 26px; font-weight: 600; }
-    .status { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--muted); }
-    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
-    .status-dot.live { background: var(--success); animation: pulse 2s infinite; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-    .container { max-width: 1200px; margin: 0 auto; padding: 32px; display: grid; grid-template-columns: 1fr 360px; gap: 32px; }
-    @media (max-width: 900px) { .container { grid-template-columns: 1fr; } }
-    .panel { background: var(--card); border-radius: 20px; border: 1px solid var(--border); padding: 24px; }
-    .panel-title { font-size: 16px; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
-    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
-    .product-card { border: 2px solid transparent; border-radius: 16px; padding: 16px; background: #fafaf9; cursor: pointer; transition: all 0.2s; position: relative; }
-    .product-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-    .product-card.active { border-color: var(--accent); background: rgba(196,92,62,0.04); }
-    .product-card .badge { position: absolute; top: 12px; right: 12px; background: var(--accent); color: white; font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; display: none; }
-    .product-card.active .badge { display: block; }
-    .product-img { width: 100%; height: 140px; border-radius: 12px; object-fit: cover; background: #e8e6e1; margin-bottom: 12px; }
-    .product-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
-    .product-price { color: var(--accent); font-weight: 700; font-size: 15px; }
-    .product-stock { font-size: 12px; color: var(--muted); margin-top: 4px; }
-    .control-group { margin-bottom: 20px; }
-    .control-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 8px; }
-    .btn { width: 100%; padding: 14px; border-radius: 14px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-    .btn-primary { background: var(--accent); color: white; }
-    .btn-primary:hover:not(:disabled) { background: #a84d32; }
-    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-danger { background: #c0392b; color: white; }
-    .btn-danger:hover { background: #a93226; }
-    .info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
-    .info-row:last-child { border-bottom: none; }
-    .info-label { color: var(--muted); }
-    .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--text); color: white; padding: 14px 28px; border-radius: 12px; font-size: 14px; font-weight: 500; z-index: 100; opacity: 0; transition: all 0.4s cubic-bezier(0.16,1,0.3,1); }
-    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--verelo-bg);
+      padding: 40px 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+
+    .status-toast {
+      padding: 10px 20px;
+      background: #2d8a4e;
+      color: white;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .orders-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 24px;
+    }
+
+    .order-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: var(--glass-shadow);
+    }
+
+    .order-card h3 { font-size: 16px; margin-bottom: 16px; color: #1a1a1a; }
+    .order-item { display: flex; justify-content: space-between; font-size: 14px; color: var(--text-muted); margin-bottom: 8px; }
+    .order-total { display: flex; justify-content: space-between; font-size: 16px; font-weight: 700; color: var(--verelo-accent); margin: 16px 0 24px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.06); }
+
+    /* Slider Component Styles (Class-based for multiple instances) */
+    .slide-track { height: 64px; background: var(--track-bg); border-radius: 32px; border: 1px solid var(--glass-border); position: relative; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.04); }
+    .slide-hint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: var(--text-muted); pointer-events: none; transition: opacity 0.3s ease; user-select: none; }
+    .slide-hint.confirmed { color: var(--verelo-accent); font-weight: 700; }
+    .slide-thumb { width: 56px; height: 56px; background: linear-gradient(135deg, var(--verelo-accent) 0%, #a84d32 100%); border-radius: 28px; position: absolute; top: 4px; left: 4px; cursor: grab; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(196, 92, 62, 0.35); transition: transform 0.1s ease; touch-action: none; z-index: 10; }
+    .slide-thumb:active { cursor: grabbing; transform: scale(0.96); }
+    .slide-thumb::after { content: '→'; color: white; font-size: 20px; font-weight: 700; }
+    .slide-thumb.confirmed { background: linear-gradient(135deg, #2d8a4e 0%, #1e6b38 100%); box-shadow: 0 4px 12px rgba(45, 138, 78, 0.35); }
+    .slide-thumb.confirmed::after { content: '✓'; }
+    .slide-progress { position: absolute; inset: 0; background: linear-gradient(90deg, var(--verelo-accent-light) 0%, transparent 100%); border-radius: 32px; transform-origin: left; transform: scaleX(0); pointer-events: none; opacity: 0.6; }
+    
+    .confirmed-state { display: none; text-align: center; padding: 10px 0; color: #2d8a4e; font-weight: 600; font-size: 15px; }
   </style>
 </head>
 <body>
-  <div class="header">
-    <div class="logo">Verelo Factory Control</div>
-    <div class="status">
-      <div class="status-dot" id="status-dot"></div>
-      <span id="status-text">Offline</span>
-    </div>
+
+  <div class="admin-header">
+    <h2>Pending WhatsApp Orders</h2>
+    <div id="status-toast" class="status-toast">Order confirmed & customer notified</div>
   </div>
-  <div class="container">
-    <div>
-      <div class="panel">
-        <div class="panel-title">📦 Select Active Product</div>
-        <div class="product-grid" id="product-grid">
-          <div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--muted);">Loading products...</div>
-        </div>
-      </div>
+
+  <div class="orders-grid" id="orders-container">
     </div>
-    <div>
-      <div class="panel">
-        <div class="panel-title">🔴 Stream Control</div>
-        <div class="control-group">
-          <div class="control-label">Selected Product</div>
-          <div id="selected-product" style="font-weight:600; font-size:15px; padding:12px; background:#fafaf9; border-radius:12px;">None selected</div>
-        </div>
-        <div class="control-group">
-          <div class="control-label">Room</div>
-          <div class="info-row"><span class="info-label">Name</span><span>verelo-factory</span></div>
-          <div class="info-row"><span class="info-label">Platform</span><span>LiveKit</span></div>
-        </div>
-        <button class="btn btn-primary" id="go-live-btn" onclick="goLive()" disabled>Go Live with Product</button>
-        <button class="btn btn-danger" style="margin-top:10px; display:none;" id="end-btn" onclick="endStream()">End Stream</button>
-      </div>
-      <div class="panel" style="margin-top:20px;">
-        <div class="panel-title">📊 Quick Stats</div>
-        <div class="info-row"><span class="info-label">Products</span><span id="stat-products">0</span></div>
-        <div class="info-row"><span class="info-label">Active</span><span id="stat-active">0</span></div>
-        <div class="info-row"><span class="info-label">Viewers</span><span id="stat-viewers">0</span></div>
-      </div>
-    </div>
-  </div>
-  <div class="toast" id="toast">Message</div>
+
   <script>
-    const ROOM_NAME = 'verelo-factory';
-    let products = [], selectedProduct = null, isLive = false;
-    async function loadProducts() {
+    // Mock Data (Replace with API fetch in production)
+    const pendingOrders = [
+      { id: 'ORD-ABC123', items: [{name: 'Ethiopian Yirgacheffe', price: '24.00'}], total: '24.00' },
+      { id: 'ORD-XYZ789', items: [{name: 'Verelo Bundle', price: '49.99'}], total: '49.99' }
+    ];
+
+    function showStatus(msg) {
+      const toast = document.getElementById('status-toast');
+      toast.textContent = msg;
+      toast.style.opacity = 1;
+      setTimeout(() => toast.style.opacity = 0, 3000);
+    }
+
+    async function confirmOrder(orderId, trackElement) {
       try {
-        const res = await fetch('/api/products?is_active=1');
-        const data = await res.json();
-        products = data.products || [];
-        renderProducts();
-        document.getElementById('stat-products').textContent = products.length;
-        document.getElementById('stat-active').textContent = products.filter(p => p.is_active).length;
-      } catch (e) { showToast('Failed to load products'); }
+        // --- YOUR ACTUAL BACKEND CALL GOES HERE ---
+        // const res = await fetch(`/api/order/${orderId}/confirm`, { method: 'POST' });
+        // const data = await res.json();
+        
+        // Mocking successful response for now:
+        const data = { ok: true }; 
+        
+        if (data.ok) {
+          showStatus(`Order #${orderId} confirmed & customer notified`);
+          
+          // UI Updates after successful API call
+          setTimeout(() => {
+            trackElement.style.display = 'none';
+            const confirmedMsg = trackElement.nextElementSibling;
+            confirmedMsg.style.display = 'block';
+          }, 400);
+        }
+      } catch (err) {
+        console.error('Failed to confirm order', err);
+        showStatus('Error confirming order');
+      }
     }
-    function renderProducts() {
-      const grid = document.getElementById('product-grid');
-      if (products.length === 0) { grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--muted);">No active products</div>'; return; }
-      grid.innerHTML = products.map(p => `
-        <div class="product-card ${selectedProduct?.id === p.id ? 'active' : ''}" onclick="selectProduct('${p.id}')">
-          <div class="badge">LIVE</div>
-          <img class="product-img" src="${p.primary_image || 'https://via.placeholder.com/220x140/e8e6e1/999?text=No+Image'}" onerror="this.src='https://via.placeholder.com/220x140/e8e6e1/999?text=No+Image'">
-          <div class="product-name">${p.name}</div>
-          <div class="product-price">${p.currency || 'USD'} ${parseFloat(p.price).toFixed(2)}</div>
-          <div class="product-stock">${p.inventory_count || 0} in stock • ${p.box_type || 'standard'}</div>
-        </div>`).join('');
+
+    function renderOrderCard(order) {
+      const itemsHtml = order.items.map(i => `<div class="order-item"><span>${i.name}</span><span>USD ${i.price}</span></div>`).join('');
+      
+      return `
+        <div class="order-card" id="card-${order.id}">
+          <h3>Order #${order.id}</h3>
+          ${itemsHtml}
+          <div class="order-total"><span>Total</span><span>USD ${order.total}</span></div>
+          
+          <div class="slide-track" data-order="${order.id}">
+            <div class="slide-progress"></div>
+            <div class="slide-hint">Slide to confirm via WhatsApp</div>
+            <div class="slide-thumb"></div>
+          </div>
+          <div class="confirmed-state">✓ Confirmed</div>
+        </div>
+      `;
     }
-    function selectProduct(id) {
-      selectedProduct = products.find(p => p.id === id);
-      renderProducts();
-      document.getElementById('selected-product').textContent = selectedProduct.name;
-      document.getElementById('go-live-btn').disabled = false;
-    }
-    async function goLive() {
-      if (!selectedProduct) return;
-      const btn = document.getElementById('go-live-btn');
-      btn.disabled = true; btn.textContent = 'Syncing...';
-      try {
-        const res = await fetch('/api/livekit/room-metadata', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ room: ROOM_NAME, productId: selectedProduct.id })
-        });
-        const data = await res.json();
-        if (data.ok) { isLive = true; updateLiveUI(true); showToast(`Now live: ${selectedProduct.name}`); }
-        else throw new Error(data.error || 'Sync failed');
-      } catch (e) { showToast('Error: ' + e.message); btn.disabled = false; btn.textContent = 'Go Live with Product'; }
-    }
-    async function endStream() {
-      try { await fetch('/api/livekit/room-metadata', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ room: ROOM_NAME, action: 'clear' }) }); } catch (e) {}
-      isLive = false; selectedProduct = null; updateLiveUI(false); renderProducts(); document.getElementById('selected-product').textContent = 'None selected'; showToast('Stream ended');
-    }
-    function updateLiveUI(live) {
-      const dot = document.getElementById('status-dot'), text = document.getElementById('status-text'), goBtn = document.getElementById('go-live-btn'), endBtn = document.getElementById('end-btn');
-      if (live) { dot.classList.add('live'); text.textContent = 'LIVE'; goBtn.style.display = 'none'; endBtn.style.display = 'block'; }
-      else { dot.classList.remove('live'); text.textContent = 'Offline'; goBtn.style.display = 'block'; goBtn.textContent = 'Go Live with Product'; endBtn.style.display = 'none'; }
-    }
-    function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
-    setInterval(async () => { if (!isLive) return; try { document.getElementById('stat-viewers').textContent = Math.floor(Math.random() * 50); } catch (e) {} }, 5000);
-    loadProducts();
+
+    // Render the UI
+    document.getElementById('orders-container').innerHTML = pendingOrders.map(renderOrderCard).join('');
+
+    // Initialize all sliders
+    document.querySelectorAll('.slide-track').forEach(track => {
+      const thumb = track.querySelector('.slide-thumb');
+      const progress = track.querySelector('.slide-progress');
+      const hint = track.querySelector('.slide-hint');
+      const orderId = track.dataset.order;
+      
+      let isDragging = false, startX = 0, currentX = 4;
+      const thumbWidth = 56;
+      let isConfirmed = false;
+
+      function updatePosition(x, maxDrag) {
+        currentX = Math.max(4, Math.min(x, maxDrag));
+        const pct = (currentX - 4) / maxDrag;
+        thumb.style.left = currentX + 'px';
+        progress.style.transform = `scaleX(${pct})`;
+        hint.style.opacity = Math.max(0, 1 - pct * 2.5);
+      }
+
+      function handleDragStart(clientX) {
+        if (isConfirmed) return;
+        isDragging = true;
+        startX = clientX - currentX;
+        thumb.style.transition = '';
+        progress.style.transition = '';
+      }
+
+      function handleDragMove(clientX) {
+        if (!isDragging || isConfirmed) return;
+        const maxDrag = track.offsetWidth - thumbWidth - 8;
+        updatePosition(clientX - startX, maxDrag);
+      }
+
+      function handleDragEnd() {
+        if (!isDragging) return;
+        isDragging = false;
+        const maxDrag = track.offsetWidth - thumbWidth - 8;
+        
+        if (currentX >= maxDrag * 0.85) {
+          // Confirm Triggered
+          isConfirmed = true;
+          thumb.classList.add('confirmed');
+          hint.textContent = 'Confirming...';
+          hint.classList.add('confirmed');
+          hint.style.opacity = 1;
+          thumb.style.transition = 'left 0.3s cubic-bezier(0.16,1,0.3,1)';
+          updatePosition(maxDrag + 4, maxDrag);
+          
+          confirmOrder(orderId, track);
+        } else {
+          // Snap back
+          thumb.style.transition = 'left 0.3s cubic-bezier(0.16,1,0.3,1)';
+          progress.style.transition = 'transform 0.3s ease';
+          updatePosition(4, maxDrag);
+        }
+      }
+
+      // Mouse Events
+      thumb.addEventListener('mousedown', e => handleDragStart(e.clientX));
+      document.addEventListener('mousemove', e => handleDragMove(e.clientX));
+      document.addEventListener('mouseup', handleDragEnd);
+
+      // Touch Events
+      thumb.addEventListener('touchstart', e => handleDragStart(e.touches[0].clientX), { passive: false });
+      document.addEventListener('touchmove', e => { if(isDragging) e.preventDefault(); handleDragMove(e.touches[0].clientX); }, { passive: false });
+      document.addEventListener('touchend', handleDragEnd);
+    });
   </script>
 </body>
 </html>

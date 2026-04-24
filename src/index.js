@@ -1,18 +1,17 @@
+import 'dotenv/config';
 import { readdirSync, existsSync, readFileSync } from 'fs';
 import crypto from 'crypto';
 import { getPresignedUploadUrl } from './services/r2Presign.js';
 import { AccessToken } from 'livekit-server-sdk';
 import { getActiveProduct } from './services/activeProductStore.js';
 import express from 'express';
-import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import dbModule from './services/db.js';
 import apiRoutes from './routes/api.js';
-import { startWhatsAppSyncWorker } from './services/whatsappSyncWorker.js';
+import { startCommerceWorker } from './services/whatsappCommerceWorker.js';
 import { setActiveProduct, clearActiveProduct, getActiveProductFromDB } from './services/livekitProductBridge.js';
 
-dotenv.config();
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const publicPath = join(process.cwd(), 'public');
@@ -28,10 +27,10 @@ app.use((req, res, next) => {
   next();
 });
 
-// ── STATIC FILES (must be BEFORE routes) ──
+// ── STATIC FILES ──
 app.use(express.static(publicPath));
 
-// ── MOUNT API ROUTES from api.js at /api ──
+// ── API ROUTES ──
 app.use('/api', apiRoutes);
 
 // ── HEALTH ──
@@ -55,12 +54,35 @@ app.get('/debug/files', (req, res) => {
 app.post('/api/livekit/room-metadata', async (req, res) => {
   const { room, productId, action } = req.body;
   if (!room) return res.status(400).json({ error: 'room required' });
+  
   if (action === 'clear') {
+    const { clearFallbackProduct } = await import('./services/fallbackStore.js');
+    clearFallbackProduct();
     const result = await clearActiveProduct(room);
-    return res.json(result);
+    return res.json(result.ok ? result : { ok: true, fallback: true });
   }
+  
   if (!productId) return res.status(400).json({ error: 'productId required' });
+  
   const result = await setActiveProduct(room, productId);
+  if (!result.ok) {
+    const { setFallbackProduct } = await import('./services/fallbackStore.js');
+    const db = new DatabaseSync(join(process.cwd(), 'data', 'verelo.db'));
+    const p = db.prepare('SELECT * FROM products WHERE id = ?').get(productId);
+    db.close();
+    if (p) {
+      let meta = {};
+      try { meta = JSON.parse(p.metadata_json || '{}'); } catch {}
+      setFallbackProduct({
+        id: p.id, name: p.name, description: p.description,
+        price: p.price, currency: p.currency, category: p.category,
+        box_type: p.box_type, size: p.size, color: p.color,
+        material: p.material, image: null,
+        customization_options: meta.customization || []
+      });
+      return res.json({ ok: true, fallback: true, product: p.name });
+    }
+  }
   res.status(result.ok ? 200 : 500).json(result);
 });
 
@@ -77,11 +99,14 @@ app.post('/api/active-product', (req, res) => {
   activeProductCache = getActiveProductFromDB(productId);
   res.json({ ok: true, product: activeProductCache });
 });
-app.get('/api/active-product', (req, res) => {
-  res.json({ product: activeProductCache });
+app.get('/api/active-product', async (req, res) => {
+  if (activeProductCache) return res.json({ product: activeProductCache });
+  const { getFallbackProduct } = await import('./services/fallbackStore.js');
+  const fb = getFallbackProduct();
+  res.json({ product: fb });
 });
 
-// ── BOX / ORDER (Single Box Logic) ──
+// ── BOX / ORDER ──
 app.post('/api/order', (req, res) => {
   const { items, customer, customization, total, room } = req.body;
   if (!items || !Array.isArray(items) || items.length === 0) {
@@ -138,16 +163,42 @@ app.post('/api/order/:id/confirm', (req, res) => {
   res.json({ ok: true, order, whatsapp_status: 'queued' });
 });
 
-// ── EXPLICIT HTML ROUTES (guaranteed delivery) ──
+// ── HTML ROUTES ──
 app.get('/', (req, res) => res.sendFile(join(publicPath, 'index.html')));
 app.get('/index.html', (req, res) => res.sendFile(join(publicPath, 'index.html')));
 app.get('/admin.html', (req, res) => res.sendFile(join(publicPath, 'admin.html')));
 app.get('/live.html', (req, res) => res.sendFile(join(publicPath, 'live.html')));
 
-// ── 404 ──
-app.use((req, res) => res.status(404).send(`Cannot GET ${req.path}`));
+// ── PRODUCTS API ──
+app.get('/api/products', (req, res) => {
+  const db = new DatabaseSync(join(process.cwd(), 'data', 'verelo.db'));
+  const isActive = req.query.is_active;
+  let rows;
+  if (isActive !== undefined) {
+    rows = db.prepare('SELECT * FROM products WHERE is_active = ?').all(isActive);
+  } else {
+    rows = db.prepare('SELECT * FROM products').all();
+  }
+  db.close();
+  res.json({ products: rows });
+});
 
-// ── ERROR ──
+// ── LIVEKIT TOKEN ──
+app.get('/api/voice/listen', async (req, res) => {
+  const { room } = req.query;
+  if (!room) return res.status(400).json({ error: 'room required' });
+  const at = new AccessToken(
+    process.env.LIVEKIT_API_KEY,
+    process.env.LIVEKIT_API_SECRET,
+    { identity: 'viewer-' + Math.random().toString(36).slice(2, 8) }
+  );
+  at.addGrant({ roomJoin: true, room: room, canPublish: false, canSubscribe: true });
+  const token = await at.toJwt();
+  res.json({ token, room });
+});
+
+// ── 404 / ERROR ──
+app.use((req, res) => res.status(404).send(`Cannot GET ${req.path}`));
 app.use((err, req, res, next) => {
   console.error('[Server Error]', err.message);
   res.status(500).json({ error: 'Internal server error' });
@@ -188,6 +239,6 @@ const PORT = process.env.PORT || 8080;
   await seedIfEmpty();
   app.listen(PORT, () => {
     console.log(`[API] Verelo Core Live on ${PORT}`);
-    startWhatsAppSyncWorker().catch(console.error);
+    startCommerceWorker().catch(console.error);
   });
 })();

@@ -104,7 +104,7 @@
     </div>
   </div>
   <script>
-    const LIVEKIT_URL = 'wss://verelo.livekit.cloud';
+    const LIVEKIT_URL = 'wss://verelo-agslmgh2.livekit.cloud';
     const ROOM_NAME = 'verelo-factory';
     let room = null, currentProduct = null;
     let box = JSON.parse(localStorage.getItem('verelo_box') || '[]');
@@ -137,7 +137,7 @@
         document.getElementById('product-overlay').style.display = 'block';
       } catch (e) { console.warn('Invalid metadata:', e); }
     }
-    function addToBox() { if (!currentProduct) return; if (box.find(i => i.id === currentProduct.id)) { showStatus('This item is already in your box'); return; } box.push({ id: currentProduct.id, name: currentProduct.name, price: currentProduct.price, currency: currentProduct.currency, image: currentProduct.image, customization: {} }); saveBox(); updateBoxUI(); showStatus('Added to box!'); const btn = document.getElementById('box-toggle'); btn.style.transform = 'scale(1.2)'; setTimeout(() => btn.style.transform = '', 200); }
+    function addToBox() { if (!currentProduct) { const name = document.getElementById('p-name').textContent; const priceText = document.getElementById('p-price').textContent; if (name === 'Product Name' || !priceText) { showStatus('No product loaded yet'); return; } const currency = priceText.split(' ')[0] || 'USD'; const price = parseFloat(priceText.split(' ')[1]) || 0; currentProduct = { id: 'dom-' + Date.now(), name: name, price: price, currency: currency, image: document.getElementById('p-image').src }; } if (box.find(i => i.id === currentProduct.id)) { showStatus('This item is already in your box'); return; } box.push({ id: currentProduct.id, name: currentProduct.name, price: currentProduct.price, currency: currentProduct.currency, image: currentProduct.image, customization: {} }); saveBox(); updateBoxUI(); showStatus('Added to box!'); const btn = document.getElementById('box-toggle'); btn.style.transform = 'scale(1.2)'; setTimeout(() => btn.style.transform = '', 200); }
     function saveBox() { localStorage.setItem('verelo_box', JSON.stringify(box)); }
     function updateBoxUI() { const container = document.getElementById('box-items'), count = document.getElementById('box-count'), footer = document.getElementById('box-footer'), totalEl = document.getElementById('box-total'); count.textContent = box.length; count.style.display = box.length > 0 ? 'flex' : 'none'; if (box.length === 0) { container.innerHTML = '<div class=\"box-empty\">Your box is empty.<br>Watch the stream and add items.</div>'; footer.style.display = 'none'; return; } let total = 0; container.innerHTML = box.map((item, idx) => { total += parseFloat(item.price || 0); return `<div class=\"box-item\"><div style=\"display:flex; gap:12px; align-items:center;\"><img src=\"${item.image || 'https://via.placeholder.com/50'}\" style=\"width:50px;height:50px;border-radius:10px;object-fit:cover;\"><div style=\"flex:1;\"><div class=\"box-item-name\">${item.name}</div><div class=\"box-item-price\">${item.currency || 'USD'} ${parseFloat(item.price).toFixed(2)}</div></div><button onclick=\"removeFromBox(${idx})\" style=\"background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);\">×</button></div></div>`; }).join(''); totalEl.textContent = (box[0]?.currency || 'USD') + ' ' + total.toFixed(2); footer.style.display = 'block'; }
     function removeFromBox(idx) { box.splice(idx, 1); saveBox(); updateBoxUI(); }
