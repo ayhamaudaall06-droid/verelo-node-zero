@@ -27,10 +27,10 @@ app.use((req, res, next) => {
   next();
 });
 
-// ── STATIC FILES (must be BEFORE routes) ──
+// ── STATIC FILES ──
 app.use(express.static(publicPath));
 
-// ── MOUNT API ROUTES from api.js at /api ──
+// ── API ROUTES ──
 app.use('/api', apiRoutes);
 
 // ── HEALTH ──
@@ -106,7 +106,7 @@ app.get('/api/active-product', async (req, res) => {
   res.json({ product: fb });
 });
 
-// ── BOX / ORDER (Single Box Logic) ──
+// ── BOX / ORDER ──
 app.post('/api/order', (req, res) => {
   const { items, customer, customization, total, room } = req.body;
   if (!items || !Array.isArray(items) || items.length === 0) {
@@ -163,13 +163,13 @@ app.post('/api/order/:id/confirm', (req, res) => {
   res.json({ ok: true, order, whatsapp_status: 'queued' });
 });
 
-// ── EXPLICIT HTML ROUTES (guaranteed delivery) ──
+// ── HTML ROUTES ──
 app.get('/', (req, res) => res.sendFile(join(publicPath, 'index.html')));
 app.get('/index.html', (req, res) => res.sendFile(join(publicPath, 'index.html')));
 app.get('/admin.html', (req, res) => res.sendFile(join(publicPath, 'admin.html')));
 app.get('/live.html', (req, res) => res.sendFile(join(publicPath, 'live.html')));
 
-// ── INLINE PRODUCTS API (emergency fallback) ──
+// ── PRODUCTS API ──
 app.get('/api/products', (req, res) => {
   const db = new DatabaseSync(join(process.cwd(), 'data', 'verelo.db'));
   const isActive = req.query.is_active;
@@ -197,22 +197,26 @@ app.get('/api/voice/listen', async (req, res) => {
   res.json({ token, room });
 });
 
-// ── 404 ──
+// ── 404 / ERROR ──
 app.use((req, res) => res.status(404).send(`Cannot GET ${req.path}`));
-
-// ── ERROR ──
 app.use((err, req, res, next) => {
   console.error('[Server Error]', err.message);
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// ── START ──
+// ── START SERVER IMMEDIATELY ──
 const PORT = process.env.PORT || 8080;
-
-// ── INIT DB + SEED ──
-await dbModule.init();
-
 app.listen(PORT, () => {
   console.log(`[API] Verelo Core Live on ${PORT}`);
-  startCommerceWorker().catch(console.error);
 });
+
+// ── INIT DB + WORKER IN BACKGROUND ──
+(async () => {
+  try {
+    await dbModule.init();
+    console.log('[DB] Initialized successfully');
+    startCommerceWorker().catch(console.error);
+  } catch (err) {
+    console.error('[DB Init Error]', err.message);
+  }
+})();
