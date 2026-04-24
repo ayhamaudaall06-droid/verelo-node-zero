@@ -10,7 +10,7 @@ import { dirname, join } from 'path';
 import { DatabaseSync } from 'node:sqlite';
 import dbModule from './services/db.js';
 import apiRoutes from './routes/api.js';
-import { startWhatsAppSyncWorker } from './services/whatsappSyncWorker.js';
+import { startCommerceWorker } from './services/whatsappCommerceWorker.js';
 import { setActiveProduct, clearActiveProduct, getActiveProductFromDB } from './services/livekitProductBridge.js';
 
 dotenv.config();
@@ -235,5 +235,5 @@ seedDb.close();
 
 app.listen(PORT, () => {
   console.log(`[API] Verelo Core Live on ${PORT}`);
-  startWhatsAppSyncWorker().catch(console.error);
+  startCommerceWorker().catch(console.error);
 });
