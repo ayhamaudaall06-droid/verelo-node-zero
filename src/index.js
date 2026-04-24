@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import { readdirSync, existsSync, readFileSync } from 'fs';
 import crypto from 'crypto';
-import { DatabaseSync } from 'node:sqlite';
 import { getPresignedUploadUrl } from './services/r2Presign.js';
 import { AccessToken } from 'livekit-server-sdk';
 import { getActiveProduct } from './services/activeProductStore.js';
