@@ -77,4 +77,11 @@ router.get('/products', (req, res) => {
   res.json({ products: rows });
 });
 
+router.get('/products/browse', (req, res) => {
+  const db = new DatabaseSync(dbPath);
+  const rows = db.prepare('SELECT * FROM products WHERE is_active = 1').all();
+  db.close();
+  res.json({ products: rows });
+});
+
 export default router;
