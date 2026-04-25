@@ -9,7 +9,88 @@ if (!existsSync(dbDir)) mkdirSync(dbDir, { recursive: true });
 const db = new DatabaseSync(dbPath);
 db.exec('PRAGMA journal_mode = WAL;');
 
-// Clear old demo products
+// ── CREATE SCHEMA FIRST ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS products (
+    id TEXT PRIMARY KEY,
+    sku TEXT UNIQUE,
+    name TEXT,
+    description TEXT,
+    price REAL,
+    currency TEXT DEFAULT 'USD',
+    category TEXT,
+    box_type TEXT,
+    status TEXT DEFAULT 'draft',
+    is_active INTEGER DEFAULT 1,
+    metadata_json TEXT,
+    created_at INTEGER,
+    updated_at INTEGER
+  );
+
+  CREATE TABLE IF NOT EXISTS product_media (
+    id TEXT PRIMARY KEY,
+    product_id TEXT,
+    url TEXT,
+    type TEXT DEFAULT 'image',
+    is_primary INTEGER DEFAULT 0,
+    created_at INTEGER,
+    FOREIGN KEY (product_id) REFERENCES products(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS sync_state (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id TEXT,
+    target_platform TEXT,
+    status TEXT,
+    payload_hash TEXT,
+    synced_at INTEGER
+  );
+
+  CREATE TABLE IF NOT EXISTS box_registry (
+    id TEXT PRIMARY KEY,
+    customer_phone TEXT,
+    items_json TEXT,
+    total REAL,
+    currency TEXT,
+    status TEXT DEFAULT 'open',
+    created_at INTEGER,
+    updated_at INTEGER
+  );
+
+  CREATE TABLE IF NOT EXISTS orders (
+    id TEXT PRIMARY KEY,
+    items_json TEXT NOT NULL,
+    customer_json TEXT,
+    customization_json TEXT,
+    total DECIMAL(10,2),
+    currency TEXT DEFAULT 'USD',
+    status TEXT DEFAULT 'pending',
+    source TEXT DEFAULT 'live',
+    room TEXT,
+    created_at INTEGER DEFAULT (strftime('%s','now')),
+    confirmed_at INTEGER,
+    whatsapp_notified INTEGER DEFAULT 0
+  );
+
+  CREATE TABLE IF NOT EXISTS idempotency_keys (
+    key TEXT PRIMARY KEY,
+    action TEXT NOT NULL,
+    result_json TEXT,
+    created_at INTEGER DEFAULT (strftime('%s','now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS whatsapp_sync_queue (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    phone TEXT,
+    payload_json TEXT,
+    priority INTEGER DEFAULT 0,
+    processed_at INTEGER,
+    error_count INTEGER DEFAULT 0,
+    created_at INTEGER DEFAULT (strftime('%s','now'))
+  );
+`);
+
+// Clear old data if exists
 db.exec("DELETE FROM products");
 db.exec("DELETE FROM product_media");
 console.log('[Seed] Cleared old demo data');
