@@ -60,11 +60,14 @@ router.post('/webhook/whatsapp', async (req, res) => {
 
 // ── PRODUCTS API ──
 import { DatabaseSync } from 'node:sqlite';
-import { join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
+import { dirname, join } from 'path';
 
 const dbPath = process.env.DATABASE_PATH || join(process.cwd(), 'data', 'verelo.db');
 
 router.get('/products', (req, res) => {
+  const dbDir = dirname(dbPath);
+  if (!existsSync(dbDir)) mkdirSync(dbDir, { recursive: true });
   const db = new DatabaseSync(dbPath);
   const isActive = req.query.is_active;
   let rows;
@@ -78,6 +81,8 @@ router.get('/products', (req, res) => {
 });
 
 router.get('/products/browse', (req, res) => {
+  const dbDir = dirname(dbPath);
+  if (!existsSync(dbDir)) mkdirSync(dbDir, { recursive: true });
   const db = new DatabaseSync(dbPath);
   const rows = db.prepare('SELECT * FROM products WHERE is_active = 1').all();
   db.close();
