@@ -204,39 +204,10 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// ── AUTO-SEED DEMO PRODUCT (if empty) ──
-async function seedIfEmpty() {
-  const db = dbModule.db;
-  const count = db.prepare('SELECT COUNT(*) as c FROM products').get();
-  if (count.c === 0) {
-    await db.run(
-      `INSERT INTO products (id, sku, name, description, price, currency, category, box_type, inventory_count, is_active, metadata_json, created_at, updated_at)
- VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      'PROD-001',
-      'COFFEE-001',
-      'Ethiopian Yirgacheffe',
-      'Single-origin light roast, 250g',
-      24.00,
-      'USD',
-      'coffee',
-      'trending',
-      50,
-      1,
-      '{"size":"250g","material":"beans","customization":["grind_size","roast_level"]}',
-      Math.floor(Date.now() / 1000),
-      Math.floor(Date.now() / 1000)
-    );
-    console.log('[Seed] Demo product created');
-  } else {
-    console.log('[Seed] Products already exist:', count.c);
-  }
-}
-
 // ── START ──
 const PORT = process.env.PORT || 8080;
 (async () => {
   await dbModule.init();
-  await seedIfEmpty();
   app.listen(PORT, () => {
     console.log(`[API] Verelo Core Live on ${PORT}`);
     startCommerceWorker().catch(console.error);
